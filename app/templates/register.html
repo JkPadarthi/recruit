@@ -1,20 +1,44 @@
 {% extends "base.html" %}
+{% block bodyclass %}auth-page{% endblock %}
 {% block content %}
-<div class="card">
-  <h1>Register</h1>
-  <form id="reg-form">
-    <label>Name<input id="name" required></label>
-    <label>Email<input type="email" id="email" required></label>
-    <label>Password<input type="password" id="password" minlength="6" required></label>
-    <label>Branch<input id="branch" placeholder="AIML / CSE_CORE"></label>
-    <button class="btn" type="submit">Create account</button>
-  </form>
-  <p id="msg" class="err"></p>
-  <p class="muted">Have an account? <a href="/login">Log in</a></p>
-</div>
+<main class="auth-wrap">
+  <div class="auth-card">
+    <div class="auth-head">
+      <div class="brand-row">
+        <span class="logo-dot"></span>
+        <span class="brand-name">{{ brand }}</span>
+      </div>
+      <h1>Create your account</h1>
+      <p class="sub">Add your register IDs and start getting pinged.</p>
+    </div>
+    <form id="reg-form" autocomplete="on">
+      <label>
+        <span>Name</span>
+        <input id="name" placeholder="Your full name" required autocomplete="name">
+      </label>
+      <label>
+        <span>Email</span>
+        <input type="email" id="email" placeholder="you@email.com" required autocomplete="email">
+      </label>
+      <label>
+        <span>Password</span>
+        <input type="password" id="password" minlength="6" placeholder="At least 6 characters"
+               required autocomplete="new-password">
+      </label>
+      <label>
+        <span>Branch <span class="hint">(optional)</span></span>
+        <input id="branch" placeholder="e.g. AIML">
+      </label>
+      <button class="btn full" type="submit">Create account</button>
+    </form>
+    <p id="msg" class="form-msg" role="alert"></p>
+    <p class="muted center">Already have an account? <a href="/login">Log in</a></p>
+  </div>
+</main>
 <script>
 document.getElementById('reg-form').addEventListener('submit', async (e) => {
   e.preventDefault();
+  const btn = e.target.querySelector('button'); btn.disabled = true;
   const r = await fetch('/api/register', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
@@ -22,7 +46,10 @@ document.getElementById('reg-form').addEventListener('submit', async (e) => {
                           password: password.value, branch: branch.value}),
   });
   if (r.ok) { location.href = '/login'; }
-  else { msg.textContent = (await r.json()).detail || 'Registration failed'; }
+  else {
+    msg.textContent = (await r.json()).detail || 'Registration failed';
+    msg.classList.add('show'); btn.disabled = false;
+  }
 });
 </script>
 {% endblock %}

@@ -1,35 +1,73 @@
 {% extends "base.html" %}
+{% block bodyclass %}dash-page{% endblock %}
 {% block content %}
-<div class="topbar">
-  <span class="brand">{{ brand }}</span>
-  <span class="spacer"></span>
-  <a href="#" id="push-status" class="muted">enable push</a>
-  <a href="/api/logout" id="logout">logout</a>
-</div>
+<aside class="sidebar">
+  <div class="brand-row">
+    <span class="logo-dot"></span>
+    <span class="brand-name">{{ brand }}</span>
+  </div>
+  <nav class="side-nav">
+    <a class="nav-link active" href="#feed-sec" data-go="feed"><span class="nav-ico">◎</span>Feed</a>
+    <a class="nav-link" href="#hits-sec" data-go="hits"><span class="nav-ico">◆</span>Your hits</a>
+    <a class="nav-link" href="#ids-sec" data-go="ids"><span class="nav-ico">+</span>Register IDs</a>
+  </nav>
+  <div class="side-foot">
+    <button id="push-status" class="push-btn not-on" title="Enable push notifications">
+      <span class="push-dot"></span><span>Enable push</span>
+    </button>
+    <a class="logout-link" href="/api/logout">Log out</a>
+  </div>
+</aside>
 
-<div class="grid">
-  <section class="card">
-    <h2>Your register IDs</h2>
-    <form id="id-form" class="inline">
-      <input id="new-id" placeholder="e.g. 23BAI0021" required>
-      <button class="btn" type="submit">+ Add</button>
-    </form>
-    <ul id="id-list" class="list"></ul>
-    <p class="muted">You get notified when any of these appear on a shortlist.</p>
+<main class="dash-main">
+  <header class="dash-head">
+    <div>
+      <h1>Intro</h1>
+      <p class="dash-sub">Good to see you, <span id="dash-name"></span>. Here's what's arrived.</p>
+    </div>
+    <div id="live-indicator" class="live">
+      <span class="live-dot"></span><span>live</span>
+    </div>
+  </header>
+
+  <section class="stat-row">
+    <div class="stat"><span class="stat-num" id="stat-hits">–</span><span class="stat-lab">Your hits</span></div>
+    <div class="stat"><span class="stat-num" id="stat-ids">–</span><span class="stat-lab">Register IDs</span></div>
+    <div class="stat"><span class="stat-num" id="stat-unread">–</span><span class="stat-lab">Unread</span></div>
   </section>
 
-  <section class="card">
-    <h2>Placement feed</h2>
-    <div id="feed"></div>
-  </section>
+  <div class="dash-grid">
+    <section id="feed-sec" class="panel">
+      <div class="panel-head">
+        <h2>Placement feed</h2>
+        <span class="panel-tag">every CDC mail</span>
+      </div>
+      <div id="feed" class="feed"></div>
+    </section>
 
-  <section class="card">
-    <h2>Your hits</h2>
-    <div id="hits"></div>
-  </section>
-</div>
+    <section id="hits-sec" class="panel">
+      <div class="panel-head">
+        <h2>Your hits</h2>
+        <span class="panel-tag">shortlists with your ID</span>
+      </div>
+      <div id="hits" class="feed"></div>
+    </section>
 
-<script src="/static/app.js" defer></script>
+    <section id="ids-sec" class="panel panel-ids">
+      <div class="panel-head">
+        <h2>Register IDs</h2>
+        <span class="panel-tag">what triggers a ping</span>
+      </div>
+      <form id="id-form" class="id-add">
+        <input id="new-id" placeholder="e.g. 23BAI0021" required>
+        <button class="btn" type="submit" title="Add ID">Add</button>
+      </form>
+      <ul id="id-list" class="id-list"></ul>
+    </section>
+  </div>
+</main>
+
+<script src="/static/app.js?v=2" defer></script>
 <script>
   window.RECRUIT_VAPID_KEY = "{{ vapid_public_key }}";
   window.RECRUIT_POLL_MS = 15000;

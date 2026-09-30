@@ -1,25 +1,45 @@
 {% extends "base.html" %}
+{% block bodyclass %}auth-page{% endblock %}
 {% block content %}
-<div class="card">
-  <h1>Log in</h1>
-  <form id="login-form">
-    <label>Email<input type="email" id="email" required></label>
-    <label>Password<input type="password" id="password" required></label>
-    <button class="btn" type="submit">Log in</button>
-  </form>
-  <p id="msg" class="err"></p>
-  <p class="muted">New here? <a href="/register">Register</a></p>
-</div>
+<main class="auth-wrap">
+  <div class="auth-card">
+    <div class="auth-head">
+      <div class="brand-row">
+        <span class="logo-dot"></span>
+        <span class="brand-name">{{ brand }}</span>
+      </div>
+      <h1>Welcome back</h1>
+      <p class="sub">Log in to check your shortlists.</p>
+    </div>
+    <form id="login-form" autocomplete="on">
+      <label>
+        <span>Email</span>
+        <input type="email" id="email" placeholder="you@vit.ac.in" required autocomplete="email">
+      </label>
+      <label>
+        <span>Password</span>
+        <input type="password" id="password" placeholder="••••••••" required autocomplete="current-password">
+      </label>
+      <button class="btn full" type="submit">Log in</button>
+    </form>
+    <p id="msg" class="form-msg" role="alert"></p>
+    <p class="muted center">New here? <a href="/register">Create an account</a></p>
+  </div>
+</main>
 <script>
 document.getElementById('login-form').addEventListener('submit', async (e) => {
   e.preventDefault();
+  const btn = e.target.querySelector('button'); btn.disabled = true;
   const r = await fetch('/api/login', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({email: email.value, password: password.value}),
   });
   if (r.ok) { location.href = '/dashboard'; }
-  else { msg.textContent = (await r.json()).detail || 'Login failed'; }
+  else {
+    msg.textContent = (await r.json()).detail || 'Login failed';
+    msg.classList.add('show'); btn.disabled = false;
+  }
 });
 </script>
 {% endblock %}

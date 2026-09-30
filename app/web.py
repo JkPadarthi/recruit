@@ -49,6 +49,14 @@ def dashboard(request: Request):
          "public_base_url": settings.public_base_url})
 
 
+@router.get("/sw.js")
+def service_worker():
+    # Serve the service worker from root scope (/) so it controls /dashboard
+    p = Path(__file__).resolve().parent.parent / "static" / "sw.js"
+    return HTMLResponse(p.read_text(), media_type="application/javascript",
+                        headers={"Cache-Control": "no-cache", "Service-Worker-Allowed": "/"})
+
+
 @router.get("/manifest.json")
 def manifest():
     from fastapi.responses import JSONResponse
@@ -57,8 +65,8 @@ def manifest():
         "short_name": settings.brand_name,
         "start_url": "/dashboard",
         "display": "standalone",
-        "background_color": "#0f172a",
-        "theme_color": "#0f172a",
+        "background_color": "#07070b",
+        "theme_color": "#07070b",
         "icons": [
             {"src": "/static/icon-192.png", "sizes": "192x192", "type": "image/png"},
             {"src": "/static/icon-512.png", "sizes": "512x512", "type": "image/png"},
