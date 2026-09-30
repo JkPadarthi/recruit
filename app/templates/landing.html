@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card center">
+  <h1>{{ brand }}</h1>
+  <p class="tag">You get pinged the moment <em>your</em> register ID appears on a placement shortlist.</p>
+  <div class="row">
+    {% if authed %}
+      <a class="btn" href="/dashboard">Dashboard</a>
+    {% else %}
+      <a class="btn" href="/login">Log in</a>
+      <a class="btn outline" href="/register">Register</a>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import logging
+from pathlib import Path
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
@@ -31,6 +32,16 @@ async def _lifespan(_app: FastAPI):
 
 
 app = FastAPI(title="Recruit", version="0.1.0", lifespan=_lifespan)
+
+# Static + web pages
+from fastapi.staticfiles import StaticFiles  # noqa: E402
+from pathlib import Path as _Path  # noqa: E402
+_STATIC_DIR = _Path(__file__).resolve().parent.parent / "static"
+_STATIC_DIR.mkdir(exist_ok=True)
+app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
+
+from .web import router as web_router  # noqa: E402
+app.include_router(web_router)
 
 
 def _current_user(request: Request, s: Session) -> User:

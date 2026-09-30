@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="topbar">
+  <span class="brand">{{ brand }}</span>
+  <span class="spacer"></span>
+  <a href="#" id="push-status" class="muted">enable push</a>
+  <a href="/api/logout" id="logout">logout</a>
+</div>
+
+<div class="grid">
+  <section class="card">
+    <h2>Your register IDs</h2>
+    <form id="id-form" class="inline">
+      <input id="new-id" placeholder="e.g. 23BAI0021" required>
+      <button class="btn" type="submit">+ Add</button>
+    </form>
+    <ul id="id-list" class="list"></ul>
+    <p class="muted">You get notified when any of these appear on a shortlist.</p>
+  </section>
+
+  <section class="card">
+    <h2>Placement feed</h2>
+    <div id="feed"></div>
+  </section>
+
+  <section class="card">
+    <h2>Your hits</h2>
+    <div id="hits"></div>
+  </section>
+</div>
+
+<script src="/static/app.js" defer></script>
+<script>
+  window.RECRUIT_VAPID_KEY = "{{ vapid_public_key }}";
+  window.RECRUIT_POLL_MS = 15000;
+</script>
+{% endblock %}

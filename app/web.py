@@ -1,0 +1,66 @@
+"""Web page routes (HTML via Jinja). API lives in main.py."""
+from __future__ import annotations
+
+from pathlib import Path
+
+from fastapi import APIRouter, Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
+
+from .config import settings
+from .security import verify_session_token
+
+TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
+templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+
+router = APIRouter(tags=["web"])
+
+
+def _authed(request: Request) -> bool:
+    token = request.cookies.get(settings.session_cookie_name, "")
+    return verify_session_token(token) is not None
+
+
+@router.get("/", response_class=HTMLResponse)
+def landing(request: Request):
+    return templates.TemplateResponse(
+        request, "landing.html",
+        {"brand": settings.brand_name, "authed": _authed(request)})
+
+
+@router.get("/login", response_class=HTMLResponse)
+def login_page(request: Request):
+    return templates.TemplateResponse(request, "login.html", {"brand": settings.brand_name})
+
+
+@router.get("/register", response_class=HTMLResponse)
+def register_page(request: Request):
+    return templates.TemplateResponse(request, "register.html", {"brand": settings.brand_name})
+
+
+@router.get("/dashboard", response_class=HTMLResponse)
+def dashboard(request: Request):
+    if not _authed(request):
+        return templates.TemplateResponse(request, "login.html", {"brand": settings.brand_name})
+    return templates.TemplateResponse(
+        request, "dashboard.html",
+        {"brand": settings.brand_name,
+         "vapid_public_key": settings.vapid_public_key,
+         "public_base_url": settings.public_base_url})
+
+
+@router.get("/manifest.json")
+def manifest():
+    from fastapi.responses import JSONResponse
+    return JSONResponse({
+        "name": settings.brand_name,
+        "short_name": settings.brand_name,
+        "start_url": "/dashboard",
+        "display": "standalone",
+        "background_color": "#0f172a",
+        "theme_color": "#0f172a",
+        "icons": [
+            {"src": "/static/icon-192.png", "sizes": "192x192", "type": "image/png"},
+            {"src": "/static/icon-512.png", "sizes": "512x512", "type": "image/png"},
+        ],
+    })

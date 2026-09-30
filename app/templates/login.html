@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <h1>Log in</h1>
+  <form id="login-form">
+    <label>Email<input type="email" id="email" required></label>
+    <label>Password<input type="password" id="password" required></label>
+    <button class="btn" type="submit">Log in</button>
+  </form>
+  <p id="msg" class="err"></p>
+  <p class="muted">New here? <a href="/register">Register</a></p>
+</div>
+<script>
+document.getElementById('login-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const r = await fetch('/api/login', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({email: email.value, password: password.value}),
+  });
+  if (r.ok) { location.href = '/dashboard'; }
+  else { msg.textContent = (await r.json()).detail || 'Login failed'; }
+});
+</script>
+{% endblock %}

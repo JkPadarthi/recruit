@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <h1>Register</h1>
+  <form id="reg-form">
+    <label>Name<input id="name" required></label>
+    <label>Email<input type="email" id="email" required></label>
+    <label>Password<input type="password" id="password" minlength="6" required></label>
+    <label>Branch<input id="branch" placeholder="AIML / CSE_CORE"></label>
+    <button class="btn" type="submit">Create account</button>
+  </form>
+  <p id="msg" class="err"></p>
+  <p class="muted">Have an account? <a href="/login">Log in</a></p>
+</div>
+<script>
+document.getElementById('reg-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const r = await fetch('/api/register', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({name: name.value, email: email.value,
+                          password: password.value, branch: branch.value}),
+  });
+  if (r.ok) { location.href = '/login'; }
+  else { msg.textContent = (await r.json()).detail || 'Registration failed'; }
+});
+</script>
+{% endblock %}
