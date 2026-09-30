@@ -50,6 +50,28 @@ async def test_add_invalid_id_rejected(client, register):
     assert r.status_code == 422
 
 
+async def test_push_toggle_subscribe_unsubscribe(client, register):
+    await register()
+    ep = "https://fcm.googleapis.com/fcm/send/NOTIFY_TEST_ENDPOINT_123"
+    r = await client.post("/api/push/subscribe", json={"endpoint": ep, "platform": "web"})
+    assert r.status_code == 200 and r.json()["subscribed"] is True
+    # unsubscribing removes only THIS device, not others
+    ep2 = "https://fcm.googleapis.com/fcm/send/NOTIFY_TEST_ENDPOINT_456"
+    await client.post("/api/push/subscribe", json={"endpoint": ep2, "platform": "web"})
+    r = await client.post("/api/push/unsubscribe", json={"endpoint": ep, "platform": "web"})
+    assert r.json()["unsubscribed"] is True
+    r2 = await client.post("/api/push/unsubscribe", json={"endpoint": ep, "platform": "web"})
+    assert r2.json()["unsubscribed"] is False  # already gone
+    # ep2 must still be present
+    from app.main import db as module_db
+    from app.models import PushSubscription
+    from sqlalchemy import select
+    with module_db.session() as s:
+        remaining = s.execute(select(PushSubscription).where(
+            PushSubscription.endpoint.in_([ep, ep2]))).scalars().all()
+    assert [x.endpoint for x in remaining] == [ep2]
+
+
 async def test_delete_id(client, register):
     await register()
     await client.post("/api/me/ids", json={"register_id": "23BAI0021"})

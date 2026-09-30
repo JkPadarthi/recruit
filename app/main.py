@@ -292,6 +292,20 @@ def push_subscribe(body: PushIn, request: Request):
         return {"subscribed": True}
 
 
+@app.post("/api/push/unsubscribe")
+def push_unsubscribe(body: PushIn, request: Request):
+    """Remove ONLY this device's subscription (matched by endpoint)."""
+    with db.session() as s:
+        u = _current_user(request, s)
+        row = s.execute(select(PushSubscription).where(
+            PushSubscription.user_id == u.id, PushSubscription.endpoint == body.endpoint)).scalar_one_or_none()
+        if row:
+            s.delete(row)
+            s.commit()
+            return {"unsubscribed": True}
+        return {"unsubscribed": False}
+
+
 @app.get("/api/push/vapid-key")
 def vapid_key():
     return {"public_key": settings.vapid_public_key}

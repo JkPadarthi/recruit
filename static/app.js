@@ -52,8 +52,13 @@ function setActiveFromHash() {
     l.classList.toggle('active', l.getAttribute('data-go') === (valid.includes(g) ? g : 'feed')));
 }
 
-// ---- Web Push ----
-async function enablePush() {
+// ---- Web Push (toggle: click to enable, click again to disable THIS device) ----
+async function getCurrentSubscription() {
+  const reg = await navigator.serviceWorker.getRegistration('/');
+  return reg ? reg.pushManager.getSubscription() : null;
+}
+
+async function togglePush() {
   const statusEl = document.getElementById('push-status');
   const label = statusEl.querySelector('span:last-child');
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
@@ -63,27 +68,42 @@ async function enablePush() {
     statusEl.classList.add('blocked'); label.textContent = 'vapid missing'; return;
   }
   try {
+    let reg = await navigator.serviceWorker.getRegistration('/');
+    if (!reg) reg = await navigator.serviceWorker.register('/sw.js?v=' + (window.RECRUIT_SW_VERSION || '20261001'));
+    await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+
+    if (sub) {
+      // ON -> OFF (this device only)
+      const endpoint = sub.endpoint;
+      await sub.unsubscribe();
+      try { await getJSON('/api/push/unsubscribe', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ endpoint, platform: 'web' }),
+      }); } catch (_) {}
+      statusEl.classList.remove('on'); statusEl.classList.add('not-on');
+      label.textContent = 'Enable Notifications';
+      return;
+    }
+
+    // OFF -> ON
     if ((await Notification.requestPermission()) !== 'granted') {
       statusEl.classList.remove('not-on'); statusEl.classList.add('blocked');
       label.textContent = 'blocked'; return;
     }
-    let reg = await navigator.serviceWorker.getRegistration('/');
-    if (!reg) reg = await navigator.serviceWorker.register('/sw.js?v=' + (window.RECRUIT_SW_VERSION || '20261001'));
-    await navigator.serviceWorker.ready;
-    const sub = await reg.pushManager.subscribe({
+    sub = await reg.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(VAPID),
     });
     const keys = sub.toJSON().keys || {};
     await getJSON('/api/push/subscribe', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ endpoint: sub.endpoint, keys, platform: 'web' }),
     });
     statusEl.classList.remove('not-on', 'blocked'); statusEl.classList.add('on');
     label.textContent = 'Notifications on';
   } catch (err) {
-    console.error('push enable failed:', err);
+    console.error('push toggle failed:', err);
     statusEl.classList.add('blocked');
     label.textContent = 'push error';
   }
@@ -93,7 +113,7 @@ async function restorePushState() {
   if (!statusEl) return;
   const label = statusEl.querySelector('span:last-child');
   try {
-    const sub = await navigator.serviceWorker.getRegistration('/').then((r) => r && r.pushManager.getSubscription());
+    const sub = await getCurrentSubscription();
     if (sub) { statusEl.classList.add('on'); label.textContent = 'Notifications on'; }
   } catch (_) {}
 }
@@ -212,7 +232,7 @@ async function boot() {
     });
   }
   const ps = document.getElementById('push-status');
-  if (ps) { ps.addEventListener('click', enablePush); restorePushState(); }
+  if (ps) { ps.addEventListener('click', togglePush); restorePushState(); }
   initNav();
   setActiveFromHash();
   window.addEventListener('hashchange', setActiveFromHash);
