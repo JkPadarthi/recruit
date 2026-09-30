@@ -60,7 +60,7 @@ async function getCurrentSubscription() {
 
 async function togglePush() {
   const statusEl = document.getElementById('push-status');
-  const label = statusEl.querySelector('span:last-child');
+  const label = statusEl.querySelector('.push-label');
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
     statusEl.classList.add('unsupported'); label.textContent = 'unsupported'; return;
   }
@@ -111,7 +111,7 @@ async function togglePush() {
 async function restorePushState() {
   const statusEl = document.getElementById('push-status');
   if (!statusEl) return;
-  const label = statusEl.querySelector('span:last-child');
+  const label = statusEl.querySelector('.push-label');
   try {
     const sub = await getCurrentSubscription();
     if (sub) { statusEl.classList.add('on'); label.textContent = 'Notifications on'; }

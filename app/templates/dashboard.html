@@ -13,7 +13,8 @@
   </nav>
   <div class="side-foot">
     <button id="push-status" class="push-btn not-on" title="Enable notifications">
-      <span class="push-dot"></span><span>Enable Notifications</span>
+      <svg class="push-bell" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+      <span class="push-label">Enable Notifications</span>
     </button>
     <a class="logout-link" href="/api/logout">Log out</a>
   </div>
@@ -67,7 +68,7 @@
   </div>
 </main>
 
-<script src="/static/app.js?v=6" defer></script>
+<script src="/static/app.js?v=7" defer></script>
 <script>
   window.RECRUIT_VAPID_KEY = "{{ vapid_public_key }}";
   window.RECRUIT_POLL_MS = 15000;
