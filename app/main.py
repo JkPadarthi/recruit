@@ -7,7 +7,7 @@ from pathlib import Path
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -126,9 +126,12 @@ def login(body: LoginIn, response: Response):
 
 
 @app.post("/api/logout")
-def logout(response: Response):
-    response.delete_cookie(settings.session_cookie_name)
-    return {"ok": True}
+def logout():
+    resp = RedirectResponse(url="/", status_code=303)
+    resp.delete_cookie(settings.session_cookie_name,
+                       path="/", httponly=True, samesite="lax",
+                       secure=settings.session_secure)
+    return resp
 
 
 @app.get("/api/me")

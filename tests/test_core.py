@@ -35,6 +35,18 @@ async def test_unauth_me(client):
     assert (await client.get("/api/me")).status_code == 401
 
 
+async def test_logout_clears_session(client, register):
+    await register()
+    me = await client.get("/api/me")
+    assert me.status_code == 200
+    # logout (POST) must clear the cookie and redirect home
+    r = await client.post("/api/logout")
+    assert r.status_code == 303
+    assert r.headers.get("location") == "/"
+    # cookie cleared -> subsequent /api/me is 401
+    assert (await client.get("/api/me")).status_code == 401
+
+
 async def test_add_and_list_ids(client, register):
     await register()
     r = await client.post("/api/me/ids", json={"register_id": "23BAI0021"})
