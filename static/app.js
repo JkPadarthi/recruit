@@ -81,7 +81,7 @@ async function enablePush() {
       body: JSON.stringify({ endpoint: sub.endpoint, keys, platform: 'web' }),
     });
     statusEl.classList.remove('not-on', 'blocked'); statusEl.classList.add('on');
-    label.textContent = 'Push on';
+    label.textContent = 'Notifications on';
   } catch (err) {
     console.error('push enable failed:', err);
     statusEl.classList.add('blocked');
@@ -94,7 +94,7 @@ async function restorePushState() {
   const label = statusEl.querySelector('span:last-child');
   try {
     const sub = await navigator.serviceWorker.getRegistration('/').then((r) => r && r.pushManager.getSubscription());
-    if (sub) { statusEl.classList.add('on'); label.textContent = 'Push on'; }
+    if (sub) { statusEl.classList.add('on'); label.textContent = 'Notifications on'; }
   } catch (_) {}
 }
 
