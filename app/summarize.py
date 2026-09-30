@@ -60,6 +60,22 @@ def _chain() -> list[dict]:
     return [m for m in chain if m.get("base_url")]
 
 
+def _normalize_aliases(data: dict) -> dict:
+    """Map common model output variants to canonical schema keys."""
+    alias = {
+        "company_name": "company",
+        "role_name": "role",
+        "ctc": "package",
+        "lpa": "package",
+        "interview_date": "event_date",
+        "registration_deadline": "deadline",
+    }
+    for src, dst in alias.items():
+        if src in data and dst not in data:
+            data[dst] = data.pop(src)
+    return data
+
+
 def _validate(data) -> bool:
     """Schema sanity: types must broadly match. Never rejects on missing fields;
     only on structurally wrong types (which would break consumers)."""
@@ -87,7 +103,10 @@ def _call(base_url: str, model: str, api_key: str, subject: str, body: str) -> d
                 "You extract structured details from a VIT placement (CDC) email into JSON. "
                 "Only JSON output. Never invent fields: use empty string/null when absent. "
                 "summary is a one-line plain-English summary. result=true only if this mail "
-                "is a selection/shortlist OUTCOME.")},
+                "is a selection/shortlist OUTCOME. Use EXACTLY these keys (no others, never "
+                "variants like company_name or role_name): company, category, role, package, "
+                "event_date, deadline, eligible_branches (array of strings), apply_link, "
+                "result (boolean), summary, interesting (boolean).")},
             {"role": "user", "content": f"SUBJECT:\n{subject}\n\nBODY:\n{body[:4000]}"},
         ],
         "temperature": 0.0,
@@ -115,6 +134,7 @@ def summarize(subject: str, body: str) -> dict:
     for link in _chain():
         try:
             parsed = _call(link["base_url"], link["model"], link["api_key"], subject, body)
+            parsed = _normalize_aliases(parsed)
             if _validate(parsed):
                 return parsed
             log.warning("invalid summary schema from %s", link["model"])
