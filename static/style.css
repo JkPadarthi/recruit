@@ -170,8 +170,11 @@ a:hover { text-decoration: underline; }
 .push-btn.on .push-bell { color: var(--green); filter: drop-shadow(0 0 4px rgba(52,211,153,.5)); }
 .push-btn.blocked .push-bell { color: var(--red); }
 .push-btn.on { color: var(--green); border-color: var(--green-bg); }
-.logout-link { color: var(--text-3); font-size: .85rem; text-align: center; padding: 4px; }
+.logout-link { color: var(--text-3); font-size: .85rem; text-align: center; padding: 4px;
+  background: none; border: none; cursor: pointer; font-family: inherit;
+  line-height: 1.2; box-shadow: none; -webkit-appearance: none; appearance: none; }
 .logout-link:hover { color: var(--red); text-decoration: none; }
+.logout-form { margin: 0; display: inline; }
 
 .dash-main { flex: 1; padding: 30px 34px; max-width: 1080px; }
 .dash-head { display: flex; align-items: flex-start; justify-content: space-between; }
