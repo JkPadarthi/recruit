@@ -105,7 +105,8 @@ def register(body: RegisterIn, request: Request):
         if s.execute(select(User).where(User.email == email)).scalar_one_or_none():
             raise HTTPException(409, "email already registered")
         u = User(email=email, password_hash=hash_password(body.password),
-                 name=body.name.strip(), branch=body.branch.strip())
+                 name=body.name.strip(), branch=body.branch.strip(),
+                 is_admin=(settings.admin_email == email))
         s.add(u)
         s.commit()
         s.refresh(u)
@@ -244,6 +245,12 @@ def status():
         return {"brand": settings.brand_name, "last_uid": st.last_uid if st else None,
                 "last_poll_at": st.last_poll_at.isoformat() if st and st.last_poll_at else None,
                 "summarize_enabled": settings.summarize_enabled, "counts": counts}
+
+
+@app.get("/health")
+def health():
+    """Lightweight liveness probe for the compose healthcheck."""
+    return {"ok": True}
 
 
 @app.post("/api/admin/poll")

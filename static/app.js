@@ -117,5 +117,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 if ('serviceWorker' in navigator && window.RECRUIT_VAPID_KEY) {
-  navigator.serviceWorker.register('/static/sw.js').catch(console.warn);
+  // versioned URL defeats any stale edge cache of the bare path
+  navigator.serviceWorker.register('/static/sw.js?v=' + (window.RECRUIT_SW_VERSION || '20261001'))
+    .catch(function () { navigator.serviceWorker.register('/static/sw.js').catch(console.warn); });
 }

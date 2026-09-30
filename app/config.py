@@ -31,6 +31,7 @@ class Settings:
     brand_name: str = field(default_factory=lambda: _env("BRAND_NAME", "Recruit"))
     public_base_url: str = field(default_factory=lambda: _env("PUBLIC_BASE_URL", "http://127.0.0.1:8090"))
     invite_code: str = field(default_factory=lambda: _env("INVITE_CODE", "").strip())  # empty = open
+    admin_email: str = field(default_factory=lambda: _env("ADMIN_EMAIL", "").strip().lower())
     allowed_email_domains: tuple = field(
         default_factory=lambda: tuple(d.strip().lower() for d in _env("ALLOWED_EMAIL_DOMAINS", "").split(",") if d.strip()))
 

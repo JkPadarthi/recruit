@@ -1,0 +1,61 @@
+services:
+  app:
+    build: .
+    image: recruit
+    restart: unless-stopped
+    env_file: .env
+    networks:
+      - proxy
+    dns:            # host gateway + public fallbacks (container DNS resolving wrong before)
+      - 192.168.0.1
+      - 1.1.1.1
+      - 8.8.8.8
+    ports:
+      - "8090:8090"
+    volumes:
+      - ./data:/data                    # db, logs, backups (host dir = durable)
+      - ./secrets:/run/secrets:ro       # vapid_private.pem etc.
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request as u;u.urlopen('http://127.0.0.1:8090/health',timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # IMAP poller — separate process so the web app stays responsive
+  worker:
+    build: .
+    image: recruit
+    restart: unless-stopped
+    env_file: .env
+    networks:
+      - proxy
+    dns:
+      - 192.168.0.1
+      - 1.1.1.1
+      - 8.8.8.8
+    volumes:
+      - ./data:/data
+      - ./secrets:/run/secrets:ro
+    command: ["python", "worker.py"]
+    healthcheck:
+      disable: true
+
+  # Nightly online SQLite backup into ./data/backups (keeps last 14)
+  backup:
+    build: .
+    image: recruit
+    restart: unless-stopped
+    env_file: .env
+    networks:
+      - proxy
+    volumes:
+      - ./data:/data
+    command: ["sh", "-c", "while true; do python scripts/backup.py; sleep 86400; done"]
+    healthcheck:
+      disable: true
+
+networks:
+  proxy:
+    external: true
