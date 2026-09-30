@@ -3,7 +3,7 @@
 {% block content %}
 <aside class="sidebar">
   <div class="brand-row">
-    <span class="logo-dot"></span>
+    <img src="/static/favicon.png" alt="" class="brand-logo" width="22" height="22">
     <span class="brand-name">{{ brand }}</span>
   </div>
   <nav class="side-nav">
@@ -67,7 +67,7 @@
   </div>
 </main>
 
-<script src="/static/app.js?v=2" defer></script>
+<script src="/static/app.js?v=4" defer></script>
 <script>
   window.RECRUIT_VAPID_KEY = "{{ vapid_public_key }}";
   window.RECRUIT_POLL_MS = 15000;

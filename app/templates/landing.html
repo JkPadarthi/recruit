@@ -4,7 +4,7 @@
 <main class="landing">
   <nav class="topbar">
     <div class="brand-row">
-      <span class="logo-dot"></span>
+      <img src="/static/favicon.png" alt="" class="brand-logo" width="22" height="22">
       <span class="brand-name">{{ brand }}</span>
     </div>
     <div class="nav-actions">
@@ -32,11 +32,16 @@
         <a class="btn big" href="/register">Create your account</a>
       {% endif %}
     </div>
-    <div class="mini-stats">
-      <div><strong class="mono">Your IDs</strong><span>Add as many as you track</span></div>
-      <div><strong class="mono">Instant</strong><span>Push within minutes of a mail</span></div>
-      <div><strong class="mono">Private</strong><span>Only your shortlists matter</span></div>
-    </div>
   </section>
+
+  <figure class="banner-wrap">
+    <img src="/static/banner.png" alt="Recruit — know the moment you're shortlisted" class="banner">
+  </figure>
+
+  <div class="mini-stats">
+    <div><strong class="mono">Your IDs</strong><span>Add as many as you track</span></div>
+    <div><strong class="mono">Instant</strong><span>Push within minutes of a mail</span></div>
+    <div><strong class="mono">Private</strong><span>Only your shortlists matter</span></div>
+  </div>
 </main>
 {% endblock %}

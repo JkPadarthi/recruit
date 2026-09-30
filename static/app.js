@@ -228,6 +228,6 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
 else boot();
 
 if ('serviceWorker' in navigator && VAPID) {
-  navigator.serviceWorker.register('/sw.js?v=' + (window.RECRUIT_SW_VERSION || '20261001'))
+  navigator.serviceWorker.register('/sw.js?v=' + (window.RECRUIT_SW_VERSION || '20261002'))
     .catch(console.warn);
 }

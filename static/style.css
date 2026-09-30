@@ -49,7 +49,15 @@ a:hover { text-decoration: underline; }
   width: 12px; height: 12px; border-radius: 4px;
   background: var(--grad); box-shadow: 0 0 14px rgba(124,92,255,.55);
 }
+.brand-logo { border-radius: 5px; display: block; }
 .brand-name { font-weight: 800; letter-spacing: -.02em; font-size: 1.05rem; }
+
+/* ---------- landing banner ---------- */
+.banner-wrap { margin: 40px 0 8px; }
+.banner {
+  width: 100%; max-width: 920px; border-radius: 18px;
+  display: block; box-shadow: var(--shadow);
+}
 
 /* ---------- buttons ---------- */
 .btn {
@@ -245,23 +253,55 @@ a:hover { text-decoration: underline; }
 .id-list li.empty, .muted-pad { color: var(--text-3); font-family: var(--font); font-size: .88rem; font-style: normal; text-align: left; border: 1px dashed var(--line); background: transparent; }
 
 /* ---------- responsive ---------- */
-@media (max-width: 880px) {
+@media (max-width: 900px) {
   .dash-page { flex-direction: column; }
-  .sidebar { width: 100%; height: auto; position: static; flex-direction: row; align-items: center;
-    justify-content: space-between; border-right: 0; border-bottom: 1px solid var(--line-soft); }
-  .side-nav { flex-direction: row; gap: 8px; }
-  .side-foot { flex-direction: row; margin-top: 0; align-items: center; }
-  .push-btn { width: auto; }
-  .logout-link { padding: 6px 10px; }
+  .sidebar { width: 100%; height: auto; position: sticky; top: 0; z-index: 20;
+    flex-direction: row; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 14px;
+    border-right: 0; border-bottom: 1px solid var(--line-soft);
+    background: rgba(13,13,20,.92); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+  .side-nav { flex-direction: row; gap: 6px; flex: 1; margin-left: 4px;
+    order: 3; flex-basis: 100%; margin-top: 6px; }   /* nav wraps to its own row */
+  .nav-link { padding: 9px 11px; font-size: .86rem; }
+  .nav-ico { width: 18px; }
+  .side-foot { flex-direction: row; margin-top: 0; align-items: center; gap: 4px;
+    order: 2; margin-left: auto; }
+  .push-btn { width: auto; padding: 8px 10px; font-size: .8rem; }
+  .push-btn span:last-child { display: none; }   /* icon-only on mobile */
+  .logout-link { padding: 8px 8px; font-size: .8rem; }
   .dash-grid { grid-template-columns: 1fr; }
-  .dash-main { padding: 22px 18px; }
+  .dash-main { padding: 18px 14px 32px; }
 }
-@media (max-width: 560px) {
-  .stat-row { gap: 10px; }
-  .stat { padding: 13px; }
-  .stat-num { font-size: 1.3rem; }
-  .hero { padding-top: 56px; }
-  .mini-stats { grid-template-columns: 1fr; }
-  .brand-name { font-size: .95rem; }
+@media (max-width: 620px) {
+  .dash-head h1 { font-size: 1.35rem; }
+  .dash-sub { font-size: .9rem; }
+  .live { font-size: .7rem; padding: 5px 10px; }
+  .stat-row { gap: 8px; margin: 18px 0 6px; }
+  .stat { padding: 14px 12px; }
+  .stat-num { font-size: 1.35rem; }
+  .stat-lab { font-size: .74rem; }
+  .dash-grid { gap: 14px; }
+  .panel { padding: 16px 14px; border-radius: var(--radius-s); }
+  .panel-head { flex-direction: column; align-items: flex-start; gap: 2px; }
+  .feed-item, .hit { padding: 12px 10px; }
+  .feed-item .subj, .hit .subj { font-size: .92rem; }
+  /* thumb-friendly targets */
+  .id-add button, .btn { min-height: 44px; }
+  .id-add input { min-height: 44px; font-size: 16px; }  /* 16px prevents iOS zoom */
+  .mark-read { min-height: 34px; padding: 6px 12px; }
+  .id-list li { padding: 12px 13px; }
+  .id-list .del { font-size: 1.1rem; padding: 6px 8px; }
+  .hero { padding-top: 48px; }
+  .hero h1 { font-size: 2rem; }
+  .lead { font-size: 1rem; }
+  .mini-stats { grid-template-columns: 1fr; gap: 10px; }
+  .auth-card { padding: 24px 18px; }
+  .brand-name { font-size: 1rem; }
+  body { -webkit-text-size-adjust: 100%; }
 }
 @media (prefers-reduced-motion: reduce) { .live-dot { animation: none; } }
+/* safe areas for notched phones */
+@supports (padding: max(0px)) {
+  .dash-main { padding-bottom: max(32px, env(safe-area-inset-bottom)); }
+  .sidebar { padding-left: max(14px, env(safe-area-inset-left));
+             padding-right: max(14px, env(safe-area-inset-right)); }
+}
