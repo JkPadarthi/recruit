@@ -352,7 +352,6 @@ async function boot() {
   const pfBtn = document.getElementById('profile-btn');
   const pfMenu = document.getElementById('profile-menu');
   if (pfBtn && pfMenu) {
-    const MARGIN = 8;
     function openMenu() {
       // Escape the sidebar's backdrop-filter/sticky containing block — reparent
       // to <body> so position:fixed is viewport-relative, else the menu gets
@@ -360,15 +359,30 @@ async function boot() {
       if (pfMenu.parentNode !== document.body) document.body.appendChild(pfMenu);
       pfMenu.classList.add('open');
       const r = pfBtn.getBoundingClientRect();
-      const mh = pfMenu.offsetHeight || 150;
-      const spaceBelow = window.innerHeight - r.bottom - MARGIN;
-      const spaceAbove = r.top - MARGIN;
-      const above = spaceBelow < mh && spaceAbove >= spaceBelow;
+      const VW = window.innerWidth;
+      const preferredW = Math.max(r.width, 220);
+      // fit width to screen (with small side margins)
+      const menuW = Math.min(preferredW, VW - 16);
+      // figure height to decide up/down
+      const mh = pfMenu.offsetHeight || 170;
+      const spaceBelow = window.innerHeight - r.bottom - 8;
+      const spaceAbove = r.top - 8;
+      const below = spaceBelow >= mh || spaceBelow >= spaceAbove;
+      // horizontal: clamp so the whole menu stays on-screen (essential when the
+      // avatar sits at the right edge on mobile — otherwise it clips off-right)
+      const rawLeft = r.left;
+      let left = Math.max(8, Math.min(rawLeft, VW - menuW - 8));
       pfMenu.style.position = 'fixed';
-      pfMenu.style.left = Math.max(8, r.left) + 'px';
-      pfMenu.style.width = Math.max(r.width, 200) + 'px';
-      if (above) { pfMenu.style.top = 'auto'; pfMenu.style.bottom = (window.innerHeight - r.top + MARGIN) + 'px'; }
-      else { pfMenu.style.bottom = 'auto'; pfMenu.style.top = (r.bottom + MARGIN) + 'px'; }
+      pfMenu.style.width = menuW + 'px';
+      pfMenu.style.left = left + 'px';
+      pfMenu.style.maxWidth = (VW - 16) + 'px';
+      if (below) {
+        pfMenu.style.top = (r.bottom + 8) + 'px';
+        pfMenu.style.bottom = 'auto';
+      } else {
+        pfMenu.style.bottom = (window.innerHeight - r.top + 8) + 'px';
+        pfMenu.style.top = 'auto';
+      }
     }
     pfBtn.addEventListener('click', (e) => {
       e.preventDefault(); e.stopPropagation();
