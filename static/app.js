@@ -151,6 +151,38 @@ async function loadIds() {
   }
 }
 
+// ---- Profile (division + branch subgroup) ----
+async function loadProfile() {
+  const me = await getJSON('/api/me');
+  const div = document.getElementById('pf-division');
+  const branch = document.getElementById('pf-branch');
+  if (!div) return;
+  div.value = me.division || '';
+  if (branch) branch.value = me.branch || '';
+}
+
+async function saveProfile() {
+  const note = document.getElementById('pf-note');
+  try {
+    await fetch('/api/me/profile', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        division: document.getElementById('pf-division').value,
+        branch: document.getElementById('pf-branch').value,
+      }),
+    });
+    if (note) { note.textContent = 'Saved ✓ — feed & notifications will now respect your division.'; note.style.color = 'var(--green-bg)'; }
+    // refresh me + hit counts
+    loadIds();
+    loadFeed();
+    loadHits();
+  } catch (e) {
+    if (note) { note.textContent = 'Save failed — try again.'; note.style.color = 'var(--red)'; }
+    console.error(e);
+  }
+}
+
 // ---- Feed + hits ----
 function feedItem(m) {
   const el = document.createElement('div');
@@ -315,6 +347,10 @@ async function boot() {
   }
   const pollBtn = document.getElementById('admin-poll');
   if (pollBtn) pollBtn.addEventListener('click', adminPoll);
+  // Profile save
+  const pfSave = document.getElementById('pf-save');
+  if (pfSave) pfSave.addEventListener('click', saveProfile);
+  if (document.getElementById('pf-division')) loadProfile();
   setInterval(() => { loadFeed().catch(console.warn); loadHits().catch(console.warn); }, POLL_MS);
   // Refresh the moment the app is (re)opened or returns from background —
   // PWA pages don't reload by themselves, so without this you'd stare at stale

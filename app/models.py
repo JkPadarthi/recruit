@@ -17,6 +17,7 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(512))
     name: Mapped[str] = mapped_column(String(120), default="")
     branch: Mapped[str] = mapped_column(String(40), default="")  # AIML / CSE_CORE / OTHER
+    division: Mapped[str] = mapped_column(String(20), default="")  # "bt" (B.Tech) / "mba" / ""
     college: Mapped[str] = mapped_column(String(40), default="VIT")
     is_admin: Mapped[bool] = mapped_column(default=False)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

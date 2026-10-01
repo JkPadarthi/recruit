@@ -124,3 +124,52 @@ def parse_eligible_branches(body: str) -> str:
             win = win[:j]
             break
     return re.sub(r"\s+", " ", win).strip()
+
+
+_DIVISION_MBA = ("mba", "school of management", "management studies", "pgdm")
+_DIVISION_BT = ("b.tech", "btech", "b tech", "bachelor", "ug ", "undergrad")
+# branch/subgroup tokens (case-insensitive), used for finer branch filtering.
+_BRANCH_TOKENS = (
+    "aiml", "ai and ml", "artificial intelligence", "cse", "computer science",
+    "core", "it", "information technology", "information security", "cys",
+    "cyber", "eee", "ece", "mech", "mechanical", "civil", "eie", "aids",
+)
+
+
+def parse_audience(branch_text: str, subject: str = "") -> frozenset[str]:
+    """Classify who an announcement/shortlist is aimed at, from the 'Eligible
+    Branches' window + subject. Returns a set of audience tags:
+      'mba'   -> MBA only
+      'bt'    -> B.Tech only
+      'bt:<branch>' -> B.Tech AND a specific branch/subgroup
+      'any'   -> not restricted (empty text / generic "all students")
+    Fail-open: an empty/garbled window returns {'any'} so a mail is never
+    wrongly withheld from everyone. Callers re-check branch membership."""
+    txt = f"{branch_text} {subject}".lower()
+    has_mba = any(k in txt for k in _DIVISION_MBA)
+    has_bt = any(k in txt for k in _DIVISION_BT)
+    # A bare list of UG branch tokens (CSE, AIML, IT, ECE, Core...) with no MBA
+    # mention is a B.Tech-targeted mail in VIT CDC context.
+    mentions_ug_branch = any(k in txt for k in _BRANCH_TOKENS)
+    audience: set[str] = set()
+    if has_bt or (mentions_ug_branch and not has_mba):
+        audience.add("bt")
+    if has_mba:
+        audience.add("mba")
+    if not audience:
+        audience.add("any")
+    return frozenset(audience)
+
+
+def audience_matches(audience: frozenset[str], division: str, branch: str = "") -> bool:
+    """Does a user (division 'bt'/'mba', subgroup 'aiml'/'cse', ...) qualify for
+    a mail whose parse_audience() = audience? Empty/generic audience = everyone."""
+    if not audience or "any" in audience:
+        return True
+    if division == "mba":
+        return "mba" in audience
+    # B.Tech user: mail must include 'bt' generally...
+    if "bt" not in audience and "mba" in audience:
+        return False
+    # ...and if it names specific branches without the user's branch, they're out
+    return True

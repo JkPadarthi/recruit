@@ -71,6 +71,11 @@ class RegisterIn(BaseModel):
     password: str
     name: str = ""
     branch: str = ""
+    division: str = ""
+class ProfileIn(BaseModel):
+    name: str = ""
+    branch: str = ""
+    division: str = ""
 class LoginIn(BaseModel):
     email: str
     password: str
@@ -110,6 +115,7 @@ def register(body: RegisterIn, request: Request):
             raise HTTPException(409, "email already registered")
         u = User(email=email, password_hash=hash_password(body.password),
                  name=body.name.strip(), branch=body.branch.strip(),
+                 division=body.division.strip().lower(),
                  is_admin=(settings.admin_email == email))
         s.add(u)
         s.commit()
@@ -144,8 +150,21 @@ def me(request: Request):
         u = _current_user(request, s)
         ids = s.execute(select(UserId).where(UserId.user_id == u.id)).scalars().all()
         return {"id": u.id, "email": u.email, "name": u.name, "branch": u.branch,
+                "division": u.division,
                 "admin": u.is_admin,
                 "ids": [{"register_id": i.register_id, "normalized_id": i.normalized_id} for i in ids]}
+
+
+@app.put("/api/me/profile")
+def update_profile(body: ProfileIn, request: Request):
+    """Let a user set/change their name, branch subgroup & division (bt/mba)."""
+    with db.session() as s:
+        u = _current_user(request, s)
+        u.name = body.name.strip()
+        u.branch = body.branch.strip()
+        u.division = body.division.strip().lower()
+        s.commit()
+        return {"id": u.id, "name": u.name, "branch": u.branch, "division": u.division}
 
 
 # ---- register-ID onboarding -------------------------------------------------
@@ -239,13 +258,18 @@ def _load_links(ing: Ingested | None) -> list[str]:
 @app.get("/api/mails")
 def get_mails(request: Request, limit: int = 50):
     with db.session() as s:
-        _current_user(request, s)
+        u = _current_user(request, s)
         rows = s.execute(select(Ingested).order_by(Ingested.created_at.desc()).limit(limit)).scalars().all()
+        # ELIGIBILITY: only surface mails aimed at this user's division/branch.
+        from .extract import audience_matches, parse_audience
+        visible = [i for i in rows
+                   if audience_matches(parse_audience(i.eligible_branches or "", i.subject or ""),
+                                       u.division, u.branch)]
         return {"mails": [
             {"id": i.id, "subject": i.subject, "from": i.from_addr, "date": i.date,
              "kind": i.kind, "eligible_branches": i.eligible_branches,
              "links": _load_links(i), "summary": _load_summary(i), "summary_status": i.summary_status}
-            for i in rows
+            for i in visible
         ]}
 
 

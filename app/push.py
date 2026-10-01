@@ -97,6 +97,8 @@ def notify_targeted(db: Session, ingest, matched_user_ids: set[int], has_ids: bo
     """
     if not ingest or not vapid_enabled():
         return
+    from .extract import audience_matches, parse_audience
+    from .models import User
     links = []
     try:
         links = json.loads(ingest.links or "[]") or []
@@ -106,15 +108,26 @@ def notify_targeted(db: Session, ingest, matched_user_ids: set[int], has_ids: bo
     has_test = "test" in kinds
     has_reg = "register" in kinds
 
+    # ELIGIBILITY GATE: who is this mail aimed at? Agilisium ("MBA All
+    # specializations") must never ping a B.Tech student, etc. Audience
+    # computed from the eligible-branches window + subject.
+    aud = parse_audience(ingest.eligible_branches or "", ingest.subject or "")
+    users = {u.id: u for u in db.execute(select(User)).scalars().all()}
+
     # decide recipient scope
     notify_all_users = has_reg or (has_test and not has_ids)
     subs = db.execute(
         select(PushSubscription).where(PushSubscription.platform == "web")
     ).scalars().all()
+    # pre-filter every candidate by audience BEFORE deciding scope
+    qualified = [s for s in subs
+                 if audience_matches(aud,
+                                     (users.get(s.user_id).division if users.get(s.user_id) else ""),
+                                     (users.get(s.user_id).branch if users.get(s.user_id) else ""))]
     if notify_all_users:
-        target = subs
+        target = qualified
     else:
-        target = [s for s in subs if s.user_id in matched_user_ids]
+        target = [s for s in qualified if s.user_id in matched_user_ids]
     if not target:
         return
 

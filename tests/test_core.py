@@ -230,3 +230,28 @@ def test_notify_test_link_with_ids_only_matched():
 def test_notify_no_link_shortlist_only_matched():
     # LMW-style: shortlist code, no link, not your ID -> matched users only (possibly none)
     assert notify_logic(has_ids=True, links=[]) == "MATCHED_ONLY"
+
+
+# ---- eligibility / division condition --------------------------------------
+from app.extract import audience_matches, parse_audience
+
+
+def test_agilisium_mba_mail_hides_from_btech():
+    # Agilisium: "Eligible Branches * - MBA All specializations *" -> MBA only
+    aud = parse_audience("Eligible Branches * - MBA All specializations *",
+                         "Agilisium Consulting - Dream Internship - MBA 2027 Batch")
+    assert aud == frozenset({"mba"})
+    assert audience_matches(aud, "bt") is False      # B.Tech student: no
+    assert audience_matches(aud, "mba") is True      # MBA student: yes
+
+
+def test_generic_mail_matches_everyone():
+    aud = parse_audience("", "Hiring drive for all students")
+    assert audience_matches(aud, "bt") is True
+    assert audience_matches(aud, "mba") is True
+
+
+def test_division_roundtrip_profile():
+    # verify a profile with no division still sees generic mails (fail-open)
+    aud = parse_audience("Eligible Branches * - CSE, IT, ECE *", "Dream internship")
+    assert "bt" in aud

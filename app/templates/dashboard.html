@@ -10,6 +10,7 @@
     <a class="nav-link active" href="#feed-sec" data-go="feed"><span class="nav-ico">◎</span>Feed</a>
     <a class="nav-link" href="#hits-sec" data-go="hits"><span class="nav-ico">◆</span>Your hits</a>
     <a class="nav-link" href="#ids-sec" data-go="ids"><span class="nav-ico">+</span>Register IDs</a>
+    <a class="nav-link" href="#profile-sec" data-go="profile"><span class="nav-ico">👤</span>Profile</a>
     {% if is_admin %}<a class="nav-link" href="#admin-sec" data-go="admin"><span class="nav-ico">⚙</span>Admin</a>{% endif %}
   </nav>
   <div class="side-foot">
@@ -69,6 +70,32 @@
       <ul id="id-list" class="id-list"></ul>
     </section>
 
+    <section id="profile-sec" class="panel panel-profile">
+      <div class="panel-head">
+        <h2>Profile</h2>
+        <span class="panel-tag">who you are — controls what you see</span>
+      </div>
+      <div class="profile-form">
+        <label>Division <span class="hint">B.Tech or MBA</span>
+          <select id="pf-division">
+            <option value="">Select…</option>
+            <option value="bt">B.Tech</option>
+            <option value="mba">MBA</option>
+          </select>
+        </label>
+        <label>Branch / subgroup <span class="hint">e.g. CSE, AIML, Core, InfoSec, General</span>
+          <input id="pf-branch" list="pf-branch-options" placeholder="e.g. AIML">
+          <datalist id="pf-branch-options">
+            <option value="CSE"><option value="AIML"><option value="Core"><option value="Information Security"><option value="IT"><option value="ECE"><option value="General"><option value="MBA"><option value="Finance"><option value="Marketing"><option value="HR">
+          </datalist>
+        </label>
+        <div class="profile-row">
+          <button id="pf-save" class="btn" type="button">Save</button>
+          <span id="pf-note" class="admin-note"></span>
+        </div>
+      </div>
+    </section>
+
     {% if is_admin %}
     <section id="admin-sec" class="panel panel-admin">
       <div class="panel-head">
@@ -91,7 +118,7 @@
   </div>
 </main>
 
-<script src="/static/app.js?v=10" defer></script>
+<script src="/static/app.js?v=11" defer></script>
 <script>
   window.RECRUIT_VAPID_KEY = "{{ vapid_public_key }}";
   window.RECRUIT_POLL_MS = 15000;
