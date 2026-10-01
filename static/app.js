@@ -161,6 +161,10 @@ async function loadProfile() {
   if (!div) return;
   div.value = me.division || '';
   if (branch) branch.value = me.branch || '';
+  const divLabel = document.getElementById('pf-division-label');
+  const branchLabel = document.getElementById('pf-branch-label');
+  if (divLabel) divLabel.textContent = me.division === 'mba' ? 'MBA' : me.division === 'bt' ? 'B.Tech' : '—';
+  if (branchLabel) branchLabel.textContent = me.branch || '—';
 }
 
 async function saveProfile() {
@@ -338,17 +342,35 @@ async function boot() {
   }
   const ps = document.getElementById('push-status');
   if (ps) { ps.addEventListener('click', togglePush); restorePushState(); }
-  // Profile dropdown (avatar) — open/close + close on outside click
+  // Profile dropdown (avatar) — open/close + position based on space + close on outside
   const pfBtn = document.getElementById('profile-btn');
   const pfMenu = document.getElementById('profile-menu');
   if (pfBtn && pfMenu) {
+    const MARGIN = 8;
+    function openMenu() {
+      pfMenu.classList.add('open');
+      const r = pfBtn.getBoundingClientRect();
+      const mh = pfMenu.offsetHeight || 150;
+      const spaceBelow = window.innerHeight - r.bottom - MARGIN;
+      const spaceAbove = r.top - MARGIN;
+      // prefer below; else above
+      const above = spaceBelow < mh && spaceAbove >= spaceBelow;
+      pfMenu.style.position = 'fixed';
+      pfMenu.style.left = Math.max(8, r.left) + 'px';
+      pfMenu.style.width = Math.max(r.width, 200) + 'px';
+      if (above) { pfMenu.style.top = 'auto'; pfMenu.style.bottom = (window.innerHeight - r.top + MARGIN) + 'px'; }
+      else { pfMenu.style.bottom = 'auto'; pfMenu.style.top = (r.bottom + MARGIN) + 'px'; }
+    }
     pfBtn.addEventListener('click', (e) => {
       e.preventDefault(); e.stopPropagation();
-      pfMenu.classList.toggle('open');
+      if (pfMenu.classList.contains('open')) pfMenu.classList.remove('open');
+      else openMenu();
     });
     document.addEventListener('click', (e) => {
       if (!pfMenu.contains(e.target) && !pfBtn.contains(e.target)) pfMenu.classList.remove('open');
     });
+    window.addEventListener('resize', () => pfMenu.classList.remove('open'));
+    document.addEventListener('scroll', () => pfMenu.classList.remove('open'), true);
     pfMenu.querySelectorAll('.menu-item').forEach((it) => {
       it.addEventListener('click', () => pfMenu.classList.remove('open'));
     });

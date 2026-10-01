@@ -57,6 +57,25 @@ def dashboard(request: Request):
          "is_admin": is_admin})
 
 
+@router.get("/profile", response_class=HTMLResponse)
+def profile_page(request: Request):
+    if not _authed(request):
+        return templates.TemplateResponse(request, "login.html", {"brand": settings.brand_name})
+    from app.main import _current_user, db as module_db
+    is_admin = False
+    try:
+        with module_db.session() as s:
+            is_admin = bool(getattr(_current_user(request, s), "is_admin", False))
+    except Exception:
+        is_admin = False
+    return templates.TemplateResponse(
+        request, "profile.html",
+        {"brand": settings.brand_name,
+         "vapid_public_key": settings.vapid_public_key,
+         "public_base_url": settings.public_base_url,
+         "is_admin": is_admin})
+
+
 @router.get("/sw.js")
 def service_worker():
     # Serve the service worker from root scope (/) so it controls /dashboard

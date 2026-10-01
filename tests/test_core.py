@@ -255,3 +255,15 @@ def test_division_roundtrip_profile():
     # verify a profile with no division still sees generic mails (fail-open)
     aud = parse_audience("Eligible Branches * - CSE, IT, ECE *", "Dream internship")
     assert "bt" in aud
+
+
+async def test_profile_page_requires_auth_and_saves(client, register):
+    await register()
+    # logged in -> profile page loads + save works
+    r = await client.get("/profile")
+    assert r.status_code == 200
+    up = await client.put("/api/me/profile", json={"division": "bt", "branch": "AIML"})
+    assert up.status_code == 200
+    me = await client.get("/api/me")
+    assert me.json()["branch"] == "AIML"
+    assert me.json()["division"] == "bt"

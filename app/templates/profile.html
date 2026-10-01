@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block bodyclass %}dash-page{% endblock %}
+{% block content %}
+{% include "_sidebar.html" %}
+<main class="dash-main">
+  <header class="dash-head">
+    <div>
+      <h1>Profile</h1>
+      <p class="dash-sub">Your division &amp; branch — these control which placement mails and notifications you see.</p>
+    </div>
+    <div id="live-indicator" class="live">
+      <span class="live-dot"></span><span>live</span>
+    </div>
+  </header>
+
+  <section class="stat-row">
+    <div class="stat"><span class="stat-num" id="pf-division-label">–</span><span class="stat-lab">Division</span></div>
+    <div class="stat"><span class="stat-num" id="pf-branch-label">–</span><span class="stat-lab">Branch</span></div>
+  </section>
+
+  <div class="dash-grid">
+    <section id="profile-sec" class="panel panel-profile">
+      <div class="panel-head">
+        <h2>Profile</h2>
+        <span class="panel-tag">who you are — controls what you see</span>
+      </div>
+      <div class="profile-form">
+        <label>Division <span class="hint">B.Tech or MBA</span>
+          <select id="pf-division">
+            <option value="">Select…</option>
+            <option value="bt">B.Tech</option>
+            <option value="mba">MBA</option>
+          </select>
+        </label>
+        <label>Branch / subgroup <span class="hint">e.g. CSE, AIML, Core, InfoSec, General</span>
+          <input id="pf-branch" list="pf-branch-options" placeholder="e.g. AIML">
+          <datalist id="pf-branch-options">
+            <option value="CSE"><option value="AIML"><option value="Core"><option value="Information Security"><option value="IT"><option value="ECE"><option value="General"><option value="MBA"><option value="Finance"><option value="Marketing"><option value="HR">
+          </datalist>
+        </label>
+        <div class="profile-row">
+          <button id="pf-save" class="btn" type="button">Save</button>
+          <span id="pf-note" class="admin-note"></span>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script src="/static/app.js?v=13" defer></script>
+<script>
+  window.RECRUIT_VAPID_KEY = "{{ vapid_public_key }}";
+  window.RECRUIT_POLL_MS = 15000;
+</script>
+{% endblock %}
