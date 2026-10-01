@@ -144,6 +144,26 @@ a:hover { text-decoration: underline; }
 .mini-stats strong { color: var(--text); }
 .mini-stats span { font-size: .8rem; color: var(--text-3); }
 
+/* ---------- install / PWA ---------- */
+.install { margin-top: 56px; max-width: 760px; }
+.install-title { font-size: 1.35rem; letter-spacing: -.02em; font-weight: 800; display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.install-lead { color: var(--text-2); margin: 8px 0 22px; max-width: 620px; }
+.install-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.install-card {
+  background: var(--panel); border: 1px solid var(--line-soft); border-radius: var(--radius);
+  padding: 18px 16px;
+}
+.install-ico { font-size: 1.5rem; margin-bottom: 8px; }
+.install-card h3 { font-size: .95rem; font-weight: 700; margin-bottom: 8px; }
+.install-card ol { list-style: decimal; padding-left: 18px; display: flex; flex-direction: column; gap: 5px; }
+.install-card li { font-size: .84rem; line-height: 1.4; color: var(--text-2); }
+.install-card strong { color: var(--text); font-weight: 600; }
+.install-card .mono { color: var(--accent-2); }
+.install-note {
+  margin-top: 16px; padding: 12px 16px; border: 1px solid var(--green-bg);
+  background: rgba(52,211,153,.07); border-radius: 12px; font-size: .9rem; color: var(--text); font-weight: 500;
+}
+
 /* ---------- dashboard layout ---------- */
 .dash-page { display: flex; min-height: 100vh; }
 .sidebar {
@@ -337,6 +357,8 @@ a:hover { text-decoration: underline; }
   .hero h1 { font-size: 2rem; }
   .lead { font-size: 1rem; }
   .mini-stats { grid-template-columns: 1fr; gap: 10px; }
+  .install-grid { grid-template-columns: 1fr; }
+  .install { margin-top: 40px; }
   .auth-card { padding: 24px 18px; }
   .brand-name { font-size: 1rem; }
   body { -webkit-text-size-adjust: 100%; }
