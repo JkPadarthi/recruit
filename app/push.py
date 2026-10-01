@@ -85,17 +85,16 @@ def notify_all(db: Session, ingest, matched_user_ids: set[int]) -> None:
         return
     subject = ingest.subject or "a placement update"
     is_shortlist = ingest.kind == "shortlist"
-    # include the first link in the mail so users can jump straight to the test/apply page
-    first_link = ""
+    # flag that a link exists WITHOUT pasting a long URL into the notification —
+    # the full links live on the feed. Just tells the person to open Recruit.
+    has_link = False
     try:
-        links = json.loads(ingest.links or "[]")
-        if links:
-            first_link = links[0]
+        has_link = bool(json.loads(ingest.links or "[]"))
     except Exception:
-        first_link = ""
+        has_link = False
     body = subject
-    if first_link:
-        body = f"{subject}\n🔗 {first_link}"
+    if has_link:
+        body = f"{subject}\n🔗 has an attached link — open the feed"
     for sub in subs:
         if sub.user_id in matched_user_ids:
             payload = {"title": "✅ You're on the list", "body": body}
