@@ -225,6 +225,16 @@ def _load_summary(ing: Ingested | None) -> dict | None:
     return None
 
 
+def _load_links(ing: Ingested | None) -> list[str]:
+    if ing and ing.links:
+        try:
+            v = json.loads(ing.links)
+            return v if isinstance(v, list) else []
+        except Exception:
+            return []
+    return []
+
+
 # ---- mails feed (dashboard source of truth) ---------------------------------
 @app.get("/api/mails")
 def get_mails(request: Request, limit: int = 50):
@@ -234,7 +244,7 @@ def get_mails(request: Request, limit: int = 50):
         return {"mails": [
             {"id": i.id, "subject": i.subject, "from": i.from_addr, "date": i.date,
              "kind": i.kind, "eligible_branches": i.eligible_branches,
-             "summary": _load_summary(i), "summary_status": i.summary_status}
+             "links": _load_links(i), "summary": _load_summary(i), "summary_status": i.summary_status}
             for i in rows
         ]}
 

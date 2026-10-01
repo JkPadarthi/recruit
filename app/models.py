@@ -50,6 +50,7 @@ class Ingested(Base):
     date: Mapped[str] = mapped_column(String(80), default="")
     kind: Mapped[str] = mapped_column(String(20), default="announcement")  # shortlist | announcement
     eligible_branches: Mapped[str] = mapped_column(Text, default="")
+    links: Mapped[str] = mapped_column(Text, default="")  # JSON list of URLs found in the mail
     # LLM summary (gated): raw JSON string of the summary schema; "" when not summarized
     summary: Mapped[str] = mapped_column(Text, default="")
     summary_status: Mapped[str] = mapped_column(String(20), default="")  # "" | ok | deferred | error

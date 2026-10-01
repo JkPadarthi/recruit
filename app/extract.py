@@ -33,6 +33,23 @@ def extract_ids(text: str) -> set[str]:
     return found
 
 
+# Capture the real scheme URLs; use a broader matcher than _URL_RE so bare
+# top-level URLs survive when preceded by punctuation/parens.
+_LINK_RE = re.compile(r"https?://[^\s\"'<>\)]+", re.IGNORECASE)
+
+
+def extract_urls(text: str) -> list[str]:
+    """Return the unique http(s) URLs present in the mail body (test/apply/register links)."""
+    if not text:
+        return []
+    seen: list[str] = []
+    for m in _LINK_RE.findall(text):
+        url = m.rstrip(".,;:!\u2026")
+        if url and url not in seen:
+            seen.append(url)
+    return seen
+
+
 def extract_ids_from_csv(path) -> set[str]:
     out: set[str] = set()
     with open(path, newline="", encoding="utf-8", errors="replace") as f:

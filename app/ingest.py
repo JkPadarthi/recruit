@@ -10,6 +10,7 @@ from __future__ import annotations
 import datetime as dt
 import email as email_mod
 import imaplib
+import json
 import logging
 import os
 import re
@@ -26,6 +27,7 @@ from .extract import (
     classify,
     extract_ids,
     extract_ids_from_spreadsheet,
+    extract_urls,
     parse_eligible_branches,
 )
 from .matcher import match_shortlist
@@ -151,6 +153,7 @@ def process_message(raw: bytes, msg_uid: str, db: Session, folder: str = "INBOX"
     ingest = Ingested(msg_uid=str(msg_uid), folder=folder, subject=subject,
                       from_addr=addr, date=date, kind=kind,
                       eligible_branches=parse_eligible_branches(body)[:_HEADER_CUT],
+                      links=json.dumps(extract_urls(body), ensure_ascii=False),
                       content_hash=chash)
     db.add(ingest)
     db.flush()

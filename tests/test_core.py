@@ -171,7 +171,7 @@ def test_normalize_flattens_nulls_and_aliases():
     assert d["eligible_branches"] == []
 
 
-from app.extract import extract_ids, classify
+from app.extract import extract_ids, classify, extract_urls
 from app.util import normalize_id
 
 
@@ -189,3 +189,10 @@ def test_inline_ids_still_extracted_after_url_strip():
     ids = extract_ids(body)
     assert normalize_id("K3I6O4I8") in ids
     assert normalize_id("23BAI0021") in ids
+
+
+def test_extract_urls_returns_links():
+    body = "Register: https://placement.vit.ac.in/2027/apply and test at https://tests.mettl.com/ab12cd"
+    assert extract_urls(body) == ["https://placement.vit.ac.in/2027/apply",
+                                   "https://tests.mettl.com/ab12cd"]
+    assert extract_urls("no links here") == []

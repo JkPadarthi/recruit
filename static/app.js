@@ -155,10 +155,12 @@ async function loadIds() {
 function feedItem(m) {
   const el = document.createElement('div');
   el.className = 'feed-item';
+  const links = (m.links || []).map((u) => `<a class="mail-link" href="${escapeHtml(u)}" target="_blank" rel="noopener">🔗 ${escapeHtml(u)}</a>`).join('');
   el.innerHTML = `
     <div class="subj">${escapeHtml(m.subject)}</div>
     <div class="meta">${m.kind ? `<span class="badge ${m.kind}">${m.kind}</span>` : ''} ${shortDate(m.date)}</div>
-    ${m.summary ? `<div class="summ">${escapeHtml(m.summary.summary || '')}</div>` : ''}`;
+    ${m.summary ? `<div class="summ">${escapeHtml(m.summary.summary || '')}</div>` : ''}
+    ${links ? `<div class="mail-links">${links}</div>` : ''}`;
   return el;
 }
 

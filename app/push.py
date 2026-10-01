@@ -85,11 +85,22 @@ def notify_all(db: Session, ingest, matched_user_ids: set[int]) -> None:
         return
     subject = ingest.subject or "a placement update"
     is_shortlist = ingest.kind == "shortlist"
+    # include the first link in the mail so users can jump straight to the test/apply page
+    first_link = ""
+    try:
+        links = json.loads(ingest.links or "[]")
+        if links:
+            first_link = links[0]
+    except Exception:
+        first_link = ""
+    body = subject
+    if first_link:
+        body = f"{subject}\n🔗 {first_link}"
     for sub in subs:
         if sub.user_id in matched_user_ids:
-            payload = {"title": "✅ You're on the list", "body": subject}
+            payload = {"title": "✅ You're on the list", "body": body}
         elif is_shortlist:
-            payload = {"title": "📋 New shortlist", "body": subject}
+            payload = {"title": "📋 New shortlist", "body": body}
         else:
-            payload = {"title": "📢 New announcement", "body": subject}
+            payload = {"title": "📢 New announcement", "body": body}
         send_to_subscription(sub, payload)
