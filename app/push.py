@@ -71,25 +71,25 @@ def send_to_subscription(sub: PushSubscription, payload: dict) -> bool:
         return False
 
 
-def notify_hits(db: Session, hits: list[Hit]) -> None:
-    """Push one message per new hit — SUBJECT ONLY in the body."""
-    if not hits or not vapid_enabled():
+def notify_all(db: Session, ingest, matched_user_ids: set[int]) -> None:
+    """Broadcast ONE mail to every subscribed user. The user whose ID actually
+    matched the shortlist gets the special '✅ You're on the list' highlight;
+    everyone else gets a generic title. Ensures broadcast mails (test links,
+    announcements, etc.) ping everyone, not just matched IDs."""
+    if not ingest or not vapid_enabled():
         return
-    user_ids = sorted({h.user_id for h in hits})
     subs = db.execute(
-        select(PushSubscription).where(
-            PushSubscription.user_id.in_(user_ids),
-            PushSubscription.platform == "web",
-        )
+        select(PushSubscription).where(PushSubscription.platform == "web")
     ).scalars().all()
     if not subs:
         return
-    by_user: dict[int, list[PushSubscription]] = {}
+    subject = ingest.subject or "a placement update"
+    is_shortlist = ingest.kind == "shortlist"
     for sub in subs:
-        by_user.setdefault(sub.user_id, []).append(sub)
-    for hit in hits:
-        ing = hit.ingested
-        subject = ing.subject if ing else "a placement shortlist"
-        payload = {"title": "✅ You're on the list", "body": subject}
-        for sub in by_user.get(hit.user_id, []):
-            send_to_subscription(sub, payload)
+        if sub.user_id in matched_user_ids:
+            payload = {"title": "✅ You're on the list", "body": subject}
+        elif is_shortlist:
+            payload = {"title": "📋 New shortlist", "body": subject}
+        else:
+            payload = {"title": "📢 New announcement", "body": subject}
+        send_to_subscription(sub, payload)

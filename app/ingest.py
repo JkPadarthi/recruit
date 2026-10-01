@@ -163,11 +163,16 @@ def process_message(raw: bytes, msg_uid: str, db: Session, folder: str = "INBOX"
     db.commit()
     log.info("uid %s ingested kind=%s ids=%d", msg_uid, kind, len(extracted))
 
+    matched_user_ids: set[int] = set()
     if kind == "shortlist" and extracted:
         created_hits = match_shortlist(db, ingest.id, extracted)
         if created_hits:
-            from .push import notify_hits
-            notify_hits(db, created_hits)
+            matched_user_ids = {h.user_id for h in created_hits}
+    # BROADCAST: every new CDC mail pings every subscribed user, so broadcast
+    # mails (test links, announcements) are never missed. Matched users get
+    # the special highlight; everyone else gets a generic title.
+    from .push import notify_all
+    notify_all(db, ingest, matched_user_ids)
     return kind
 
 
