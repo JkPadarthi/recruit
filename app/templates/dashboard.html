@@ -10,17 +10,27 @@
     <a class="nav-link active" href="#feed-sec" data-go="feed"><span class="nav-ico">◎</span>Feed</a>
     <a class="nav-link" href="#hits-sec" data-go="hits"><span class="nav-ico">◆</span>Your hits</a>
     <a class="nav-link" href="#ids-sec" data-go="ids"><span class="nav-ico">+</span>Register IDs</a>
-    <a class="nav-link" href="#profile-sec" data-go="profile"><span class="nav-ico">👤</span>Profile</a>
     {% if is_admin %}<a class="nav-link" href="#admin-sec" data-go="admin"><span class="nav-ico">⚙</span>Admin</a>{% endif %}
   </nav>
   <div class="side-foot">
-    <button id="push-status" class="push-btn not-on" title="Enable notifications">
-      <svg class="push-bell" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
-      <span class="push-label">Enable Notifications</span>
+    <button id="profile-btn" class="side-avatar" title="Profile">
+      <span class="avatar-ico">👤</span><span class="avatar-name">Menu</span>
+      <span class="avatar-caret">▾</span>
     </button>
-    <form id="logout-form" class="logout-form" method="post" action="/api/logout">
-      <button type="submit" class="logout-link" title="Sign out">Log out</button>
-    </form>
+    <div id="profile-menu" class="profile-menu">
+      <a class="menu-item" href="#profile-sec" data-go="profile">
+        <span class="menu-ico">👤</span>Profile
+      </a>
+      <button id="push-status" class="menu-item push-btn not-on" title="Enable Notifications">
+        <svg class="push-bell" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+        <span class="push-label">Enable Notifications</span>
+      </button>
+      <form id="logout-form" class="logout-form" method="post" action="/api/logout">
+        <button type="submit" class="menu-item logout-link" title="Sign out">
+          <span class="menu-ico">⏻</span>Log out
+        </button>
+      </form>
+    </div>
   </div>
 </aside>
 
@@ -118,7 +128,7 @@
   </div>
 </main>
 
-<script src="/static/app.js?v=11" defer></script>
+<script src="/static/app.js?v=12" defer></script>
 <script>
   window.RECRUIT_VAPID_KEY = "{{ vapid_public_key }}";
   window.RECRUIT_POLL_MS = 15000;

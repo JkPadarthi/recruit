@@ -129,6 +129,8 @@ async function loadIds() {
   ul.innerHTML = '';
   const nameEl = document.getElementById('dash-name');
   if (nameEl) nameEl.textContent = me.name ? me.name.split(' ')[0] : 'friend';
+  const avName = document.querySelector('#profile-btn .avatar-name');
+  if (avName) avName.textContent = me.name ? me.name.split(' ')[0] : 'Menu';
   const sIds = document.getElementById('stat-ids');
   if (sIds) sIds.textContent = me.ids.length;
   document.getElementById('stat-hits').textContent = '?';
@@ -336,6 +338,21 @@ async function boot() {
   }
   const ps = document.getElementById('push-status');
   if (ps) { ps.addEventListener('click', togglePush); restorePushState(); }
+  // Profile dropdown (avatar) — open/close + close on outside click
+  const pfBtn = document.getElementById('profile-btn');
+  const pfMenu = document.getElementById('profile-menu');
+  if (pfBtn && pfMenu) {
+    pfBtn.addEventListener('click', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      pfMenu.classList.toggle('open');
+    });
+    document.addEventListener('click', (e) => {
+      if (!pfMenu.contains(e.target) && !pfBtn.contains(e.target)) pfMenu.classList.remove('open');
+    });
+    pfMenu.querySelectorAll('.menu-item').forEach((it) => {
+      it.addEventListener('click', () => pfMenu.classList.remove('open'));
+    });
+  }
   initNav();
   setActiveFromHash();
   window.addEventListener('hashchange', setActiveFromHash);
