@@ -79,11 +79,14 @@ a:hover { text-decoration: underline; }
 
 /* ---------- auth pages ---------- */
 .auth-page {
-  display: grid; place-items: center; padding: 24px;
+  display: grid; place-items: center;
+  padding: calc(24px + env(safe-area-inset-top)) 24px
+           calc(24px + env(safe-area-inset-bottom));
   background:
     radial-gradient(900px 500px at 80% -10%, rgba(124,92,255,.16), transparent 60%),
     radial-gradient(700px 420px at -10% 110%, rgba(76,194,255,.10), transparent 55%),
     var(--bg);
+  box-sizing: border-box;
 }
 .auth-wrap { width: 100%; max-width: 400px; }
 .auth-card {
@@ -111,7 +114,9 @@ a:hover { text-decoration: underline; }
 .auth-card .muted.center { margin-top: 18px; }
 
 /* ---------- landing ---------- */
-.landing { max-width: 1080px; margin: 0 auto; padding: 22px 26px; }
+.landing { max-width: 1080px; margin: 0 auto;
+  padding: calc(22px + env(safe-area-inset-top)) 26px
+           calc(22px + env(safe-area-inset-bottom)); }
 .topbar { display: flex; align-items: center; justify-content: space-between; }
 .nav-actions { display: flex; align-items: center; gap: 8px; }
 .hero { padding: 90px 0 40px; max-width: 640px; }
@@ -142,10 +147,13 @@ a:hover { text-decoration: underline; }
 /* ---------- dashboard layout ---------- */
 .dash-page { display: flex; min-height: 100vh; }
 .sidebar {
-  width: 228px; flex-shrink: 0; padding: 22px 18px;
+  width: 228px; flex-shrink: 0;
+  padding: calc(22px + env(safe-area-inset-top)) 18px
+           calc(22px + env(safe-area-inset-bottom));
   border-right: 1px solid var(--line-soft); background: var(--bg-2);
   display: flex; flex-direction: column; gap: 22px;
   position: sticky; top: 0; height: 100vh;
+  box-sizing: border-box;
 }
 .side-nav { display: flex; flex-direction: column; gap: 4px; }
 .nav-link {
@@ -282,9 +290,12 @@ a:hover { text-decoration: underline; }
 @media (max-width: 900px) {
   .dash-page { flex-direction: column; }
   .sidebar { width: 100%; height: auto; position: sticky; top: 0; z-index: 20;
-    flex-direction: row; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 14px;
+    flex-direction: row; flex-wrap: wrap; align-items: center; gap: 10px;
+    padding: calc(12px + env(safe-area-inset-top)) 14px
+             calc(12px + env(safe-area-inset-bottom));
     border-right: 0; border-bottom: 1px solid var(--line-soft);
-    background: rgba(13,13,20,.92); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+    background: rgba(13,13,20,.92); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+    box-sizing: border-box; }
   .side-nav { flex-direction: row; gap: 6px; flex: 1; margin-left: 4px;
     order: 3; flex-basis: 100%; margin-top: 6px; }   /* nav wraps to its own row */
   .nav-link { padding: 9px 11px; font-size: .86rem; }
@@ -325,9 +336,11 @@ a:hover { text-decoration: underline; }
   body { -webkit-text-size-adjust: 100%; }
 }
 @media (prefers-reduced-motion: reduce) { .live-dot { animation: none; } }
-/* safe areas for notched phones */
+/* safe areas for notched phones (iPhone notch/Dynamic Island + home indicator) */
 @supports (padding: max(0px)) {
-  .dash-main { padding-bottom: max(32px, env(safe-area-inset-bottom)); }
-  .sidebar { padding-left: max(14px, env(safe-area-inset-left));
-             padding-right: max(14px, env(safe-area-inset-right)); }
+  .dash-main { padding-bottom: max(32px, env(safe-area-inset-bottom));
+               padding-left: max(34px, env(safe-area-inset-left));
+               padding-right: max(34px, env(safe-area-inset-right)); }
+  .sidebar { padding-left: max(18px, env(safe-area-inset-left));
+             padding-right: max(18px, env(safe-area-inset-right)); }
 }
