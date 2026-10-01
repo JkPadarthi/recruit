@@ -9,6 +9,10 @@ import re
 from .util import looks_like_id, normalize_id
 
 _TOKEN_RE = re.compile(r"[A-Z0-9]{4,16}")
+# a URL (scheme, www, or bare host) — its path/query slugs must never be read as IDs
+_URL_RE = re.compile(
+    r"(?:https?://|www\.)[^\s\"'<>]+", re.IGNORECASE
+)
 RESULT_KEYWORDS = ["shortlist", "selection list", "selected list",
                    "selected students", "final list"]
 
@@ -18,6 +22,9 @@ SPREADSHEET_EXTS = (".xlsx", ".xls", ".csv")
 def extract_ids(text: str) -> set[str]:
     if not text:
         return set()
+    # drop URLs first so path/query slugs (e.g. /authenticateKey/a3gsbg4oao)
+    # can't be mis-read as register IDs or shortlist codes
+    text = _URL_RE.sub(" ", text)
     found: set[str] = set()
     for tok in _TOKEN_RE.findall(text.upper()):
         n = normalize_id(tok)

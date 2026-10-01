@@ -169,3 +169,23 @@ def test_normalize_flattens_nulls_and_aliases():
     assert d["company"] == "X"
     assert d["event_date"] == "" and d["deadline"] == "" 
     assert d["eligible_branches"] == []
+
+
+from app.extract import extract_ids, classify
+from app.util import normalize_id
+
+
+def test_url_slugs_are_not_mistaken_for_ids():
+    """A broadcast test-link mail (https://.../a3gsbg4oao) must NOT be read as a shortlist."""
+    body = ("Kind Attention!! Test 1 : 11:00 AM "
+            "Link - https://tests.mettl.com/authenticateKey/a3gsbg4oao for everyone")
+    ids = extract_ids(body)
+    assert ids == set()
+    assert classify("Axxela test", body, ids, False) == "announcement"
+
+
+def test_inline_ids_still_extracted_after_url_strip():
+    body = "selected students include K3I6O4I8 and 23BAI0021"
+    ids = extract_ids(body)
+    assert normalize_id("K3I6O4I8") in ids
+    assert normalize_id("23BAI0021") in ids
