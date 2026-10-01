@@ -25,13 +25,19 @@ async function getJSON(url, opts) {
 // ---- Page switching (sidebar nav) ----
 function initNav() {
   const links = document.querySelectorAll('.nav-link[data-go]');
+  const map = { feed: 'feed-sec', hits: 'hits-sec', ids: 'ids-sec', admin: 'admin-sec' };
   links.forEach((a) => {
     a.addEventListener('click', (e) => {
-      e.preventDefault();
       const target = a.getAttribute('data-go');
-      showPanel(target);
-      history.replaceState(null, '', '#' + target);
-      links.forEach((l) => l.classList.toggle('active', l === a));
+      // If this page actually has the panel, switch in-place. Otherwise let the
+      // <a href="/dashboard#..."> navigate normally (profile page -> dashboard).
+      if (document.getElementById(map[target])) {
+        e.preventDefault();
+        showPanel(target);
+        history.replaceState(null, '', '#' + target);
+        links.forEach((l) => l.classList.toggle('active', l === a));
+      }
+      // else: default anchor navigation proceeds
     });
   });
 }
@@ -348,12 +354,15 @@ async function boot() {
   if (pfBtn && pfMenu) {
     const MARGIN = 8;
     function openMenu() {
+      // Escape the sidebar's backdrop-filter/sticky containing block — reparent
+      // to <body> so position:fixed is viewport-relative, else the menu gets
+      // clipped (the mobile "half hidden" bug).
+      if (pfMenu.parentNode !== document.body) document.body.appendChild(pfMenu);
       pfMenu.classList.add('open');
       const r = pfBtn.getBoundingClientRect();
       const mh = pfMenu.offsetHeight || 150;
       const spaceBelow = window.innerHeight - r.bottom - MARGIN;
       const spaceAbove = r.top - MARGIN;
-      // prefer below; else above
       const above = spaceBelow < mh && spaceAbove >= spaceBelow;
       pfMenu.style.position = 'fixed';
       pfMenu.style.left = Math.max(8, r.left) + 'px';
