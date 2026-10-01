@@ -80,6 +80,10 @@ class PushIn(BaseModel):
     endpoint: str
     keys: dict = {}
     platform: str = "web"
+class TestPushIn(BaseModel):
+    user_id: int
+    title: str = "Recruit"
+    body: str = "Test notification"
 
 
 # ---- lifespan / startup ----------------------------------------------------
@@ -272,12 +276,36 @@ def admin_stats(request: Request):
     with db.session() as s:
         _current_admin(request, s)
         users = s.execute(select(User)).scalars().all()
+        subs = s.execute(select(PushSubscription)).scalars().all()
+        from collections import Counter
+        sub_count = Counter(sub.user_id for sub in subs)
         return JSONResponse({
             "users": [{"id": u.id, "email": u.email, "name": u.name, "branch": u.branch,
-                       "admin": u.is_admin, "ids": [i.normalized_id for i in u.ids]} for u in users],
+                       "admin": u.is_admin,
+                       "ids": [i.normalized_id for i in u.ids],
+                       "devices": sub_count.get(u.id, 0)} for u in users],
             "ingested": s.execute(select(func.count(Ingested.id))).scalar_one(),
             "hits": s.execute(select(func.count(Hit.id))).scalar_one(),
         })
+
+
+@app.post("/api/admin/test-push")
+def admin_test_push(body: TestPushIn, request: Request):
+    """Send a test notification to every live device of ONE user (admin only)."""
+    with db.session() as s:
+        _current_admin(request, s)
+        subs = s.execute(select(PushSubscription).where(
+            PushSubscription.user_id == body.user_id,
+            PushSubscription.platform == "web")).scalars().all()
+        from .push import send_to_subscription
+        sent = dead = 0
+        for sub in subs:
+            if send_to_subscription(sub, {"title": body.title, "body": body.body}):
+                sent += 1
+            else:
+                dead += 1
+        return {"user_id": body.user_id, "live_devices": len(subs),
+                "sent": sent, "declined": dead}
 
 
 # ---- push subscription ------------------------------------------------------

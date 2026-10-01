@@ -10,6 +10,7 @@
     <a class="nav-link active" href="#feed-sec" data-go="feed"><span class="nav-ico">◎</span>Feed</a>
     <a class="nav-link" href="#hits-sec" data-go="hits"><span class="nav-ico">◆</span>Your hits</a>
     <a class="nav-link" href="#ids-sec" data-go="ids"><span class="nav-ico">+</span>Register IDs</a>
+    {% if is_admin %}<a class="nav-link" href="#admin-sec" data-go="admin"><span class="nav-ico">⚙</span>Admin</a>{% endif %}
   </nav>
   <div class="side-foot">
     <button id="push-status" class="push-btn not-on" title="Enable notifications">
@@ -67,10 +68,30 @@
       </form>
       <ul id="id-list" class="id-list"></ul>
     </section>
+
+    {% if is_admin %}
+    <section id="admin-sec" class="panel panel-admin">
+      <div class="panel-head">
+        <h2>Admin</h2>
+        <span class="panel-tag">only you can see this</span>
+      </div>
+      <div class="admin-actions">
+        <button id="admin-poll" class="btn" type="button" title="Poll CDC inbox now">Poll now</button>
+        <span id="admin-poll-result" class="admin-note"></span>
+      </div>
+      <div class="admin-stats">
+        <div class="stat"><span class="stat-num" id="admin-stat-ingested">–</span><span class="stat-lab">Ingested</span></div>
+        <div class="stat"><span class="stat-num" id="admin-stat-hits">–</span><span class="stat-lab">Hits</span></div>
+        <div class="stat"><span class="stat-num" id="admin-stat-users">–</span><span class="stat-lab">Users</span></div>
+      </div>
+      <h3 class="admin-sub">Send a test notification to…</h3>
+      <div id="admin-users" class="admin-users"></div>
+    </section>
+    {% endif %}
   </div>
 </main>
 
-<script src="/static/app.js?v=7" defer></script>
+<script src="/static/app.js?v=8" defer></script>
 <script>
   window.RECRUIT_VAPID_KEY = "{{ vapid_public_key }}";
   window.RECRUIT_POLL_MS = 15000;

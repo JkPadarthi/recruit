@@ -42,11 +42,19 @@ def register_page(request: Request):
 def dashboard(request: Request):
     if not _authed(request):
         return templates.TemplateResponse(request, "login.html", {"brand": settings.brand_name})
+    from app.main import _current_user, db as module_db
+    is_admin = False
+    try:
+        with module_db.session() as s:
+            is_admin = _current_user(request, s).is_admin
+    except Exception:
+        is_admin = False
     return templates.TemplateResponse(
         request, "dashboard.html",
         {"brand": settings.brand_name,
          "vapid_public_key": settings.vapid_public_key,
-         "public_base_url": settings.public_base_url})
+         "public_base_url": settings.public_base_url,
+         "is_admin": is_admin})
 
 
 @router.get("/sw.js")

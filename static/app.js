@@ -36,20 +36,23 @@ function initNav() {
   });
 }
 function showPanel(go) {
-  const map = { feed: 'feed-sec', hits: 'hits-sec', ids: 'ids-sec' };
+  const map = { feed: 'feed-sec', hits: 'hits-sec', ids: 'ids-sec', admin: 'admin-sec' };
   const id = map[go];
   if (!id) return;
-  ['feed-sec', 'hits-sec', 'ids-sec'].forEach((s) => {
+  let any = false;
+  ['feed-sec', 'hits-sec', 'ids-sec', 'admin-sec'].forEach((s) => {
     const el = document.getElementById(s);
-    if (el) el.style.display = (s === id) ? 'block' : 'none';
+    if (el) { el.style.display = (s === id) ? 'block' : 'none'; if (s === id) any = true; }
   });
+  if (!any && go === 'admin') history.replaceState(null, '', '#feed');
 }
 function setActiveFromHash() {
   const g = (location.hash || '#feed').replace('#', '');
-  const valid = ['feed', 'hits', 'ids'];
-  showPanel(valid.includes(g) ? g : 'feed');
+  const valid = ['feed', 'hits', 'ids', 'admin'];
+  const target = valid.includes(g) ? g : 'feed';
+  showPanel(target);
   document.querySelectorAll('.nav-link[data-go]').forEach((l) =>
-    l.classList.toggle('active', l.getAttribute('data-go') === (valid.includes(g) ? g : 'feed')));
+    l.classList.toggle('active', l.getAttribute('data-go') === target));
 }
 
 // ---- Web Push (toggle: click to enable, click again to disable THIS device) ----
@@ -210,6 +213,72 @@ function shortDate(iso) {
   } catch (_) { return iso || ''; }
 }
 
+// ---- Admin ----
+async function loadAdminStats() {
+  const data = await getJSON('/api/admin/stats');
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  set('admin-stat-ingested', data.ingested);
+  set('admin-stat-hits', data.hits);
+  set('admin-stat-users', data.users.length);
+  const box = document.getElementById('admin-users');
+  if (!box) return;
+  box.innerHTML = '';
+  for (const u of data.users) {
+    const row = document.createElement('div');
+    row.className = 'admin-user';
+    const idLabel = u.ids.length ? u.ids.map(escapeHtml).join(', ') : 'no IDs yet';
+    const dot = u.devices > 0 ? `<span class="badge ok">${u.devices} live</span>` : `<span class="badge off">no device</span>`;
+    const adminTag = u.admin ? '<span class="badge info">admin</span>' : '';
+    row.innerHTML = `
+      <div class="admin-user-info">
+        <div class="admin-user-name">${escapeHtml(u.name || u.email)} ${adminTag}</div>
+        <div class="admin-user-meta">${escapeHtml(u.email)} · ${escapeHtml(idLabel)} ${dot}</div>
+      </div>
+      <button class="btn small" data-test-push="${u.id}" title="Send test notification to ${escapeHtml(u.name || u.email)}">Test</button>`;
+    box.appendChild(row);
+  }
+  box.querySelectorAll('[data-test-push]').forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      const uid = btn.getAttribute('data-test-push');
+      btn.disabled = true;
+      btn.textContent = 'sending…';
+      const user = data.users.find((u) => String(u.id) === uid);
+      const who = (user && (user.name || user.email)) || 'that user';
+      try {
+        const r = await getJSON('/api/admin/test-push', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id: Number(uid), title: 'Recruit test', body: `Test ping for ${who}` }),
+        });
+        btn.textContent = `sent ${r.sent}/${r.live_devices}`;
+        btn.classList.add('sent');
+      } catch (err) {
+        btn.textContent = 'failed';
+        alert(err.message);
+      } finally {
+        setTimeout(() => { btn.disabled = false; btn.textContent = 'Test'; btn.classList.remove('sent'); }, 2200);
+      }
+    });
+  });
+}
+
+async function adminPoll() {
+  const btn = document.getElementById('admin-poll');
+  const out = document.getElementById('admin-poll-result');
+  if (!btn) return;
+  btn.disabled = true; btn.textContent = 'polling…';
+  try {
+    const r = await getJSON('/api/admin/poll', { method: 'POST' });
+    const shortlists = r.shortlists || 0, anns = r.announcements || 0;
+    out.textContent = `processed ${r.processed || 0} new · ${shortlists} shortlist · ${anns} announcement`;
+  } catch (err) {
+    out.textContent = 'poll failed';
+    alert(err.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Poll now';
+    setTimeout(() => { out.textContent = ''; }, 6000);
+  }
+}
+
 // ---- Boot ----
 async function boot() {
   const idForm = document.getElementById('id-form');
@@ -238,9 +307,12 @@ async function boot() {
   window.addEventListener('hashchange', setActiveFromHash);
   try {
     await Promise.all([loadIds(), loadFeed(), loadHits()]);
+    if (document.getElementById('admin-sec')) await loadAdminStats();
   } catch (err) {
     console.error('initial load failed:', err);
   }
+  const pollBtn = document.getElementById('admin-poll');
+  if (pollBtn) pollBtn.addEventListener('click', adminPoll);
   setInterval(() => { loadFeed().catch(console.warn); loadHits().catch(console.warn); }, POLL_MS);
 }
 

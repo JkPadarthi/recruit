@@ -40,10 +40,10 @@ def vapid_enabled() -> bool:
     return bool(settings.vapid_public_key and settings.vapid_private_key)
 
 
-def send_to_subscription(sub: PushSubscription, payload: dict) -> None:
-    """Best-effort deliver one Web Push. Never raises upward."""
+def send_to_subscription(sub: PushSubscription, payload: dict) -> bool:
+    """Best-effort deliver one Web Push. Never raises upward. Returns success."""
     if not vapid_enabled():
-        return
+        return False
     from urllib.parse import urlparse
 
     from pywebpush import WebPushException, webpush
@@ -59,13 +59,16 @@ def send_to_subscription(sub: PushSubscription, payload: dict) -> None:
             ttl=86400, timeout=10,
         )
         log.info("push OK -> user %s endpoint %s", sub.user_id, sub.endpoint[:40])
+        return True
     except WebPushException as e:
         if getattr(e, "response", None) and e.response.status_code in (404, 410):
             log.warning("push endpoint dead (%s) user %s", e.response.status_code, sub.user_id)
         else:
             log.warning("push failed user %s: %s", sub.user_id, e)
+        return False
     except Exception as e:
         log.warning("push error user %s: %s", sub.user_id, e)
+        return False
 
 
 def notify_hits(db: Session, hits: list[Hit]) -> None:

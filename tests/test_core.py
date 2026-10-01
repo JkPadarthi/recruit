@@ -138,3 +138,17 @@ async def test_match_idempotent(client, register):
 async def test_admin_endpoint_requires_admin(client, register):
     await register()
     assert (await client.get("/api/admin/stats")).status_code == 403
+    r = await client.post("/api/admin/test-push", json={"user_id": 1, "body": "x"})
+    assert r.status_code == 403
+
+
+async def test_admin_stats_and_test_push_admin_ok(client, register):
+    await register("admin@vit.ac.in", "pw12345")  # admin by ADMIN_EMAIL match
+    r = await client.get("/api/admin/stats")
+    assert r.status_code == 200
+    body = r.json()
+    assert isinstance(body["users"], list) and body["users"][0]["admin"] is True
+    uid = body["users"][0]["id"]
+    tr = await client.post("/api/admin/test-push", json={"user_id": uid, "title": "t", "body": "b"})
+    assert tr.status_code == 200
+    assert tr.json()["live_devices"] == 0

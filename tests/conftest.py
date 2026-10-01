@@ -15,6 +15,7 @@ os.environ["LLM_API_KEY"] = ""
 os.environ["SECRET_KEY"] = "test-secret"
 os.environ["SESSION_SECURE"] = "0"
 os.environ["INVITE_CODE"] = ""
+os.environ["ADMIN_EMAIL"] = "admin@vit.ac.in"
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
