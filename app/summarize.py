@@ -61,7 +61,7 @@ def _chain() -> list[dict]:
 
 
 def _normalize_aliases(data: dict) -> dict:
-    """Map common model output variants to canonical schema keys."""
+    """Map common model output variants to canonical schema keys and flatten nulls."""
     alias = {
         "company_name": "company",
         "role_name": "role",
@@ -73,19 +73,26 @@ def _normalize_aliases(data: dict) -> dict:
     for src, dst in alias.items():
         if src in data and dst not in data:
             data[dst] = data.pop(src)
+    # never store raw nulls — consumers expect "" / []
+    for key, typ in SUMMARY_SCHEMA.items():
+        if key in data and data[key] is None:
+            data[key] = [] if typ is list else ""
     return data
 
 
 def _validate(data) -> bool:
     """Schema sanity: types must broadly match. Never rejects on missing fields;
-    only on structurally wrong types (which would break consumers)."""
+    only on structurally wrong types (which would break consumers).
+    None (null) is accepted — the model legitimately emits null for absent fields."""
     if not isinstance(data, dict):
         return False
     for key, typ in SUMMARY_SCHEMA.items():
-        if key in data and not isinstance(data[key], (typ,)) and typ is not list:
-            return False
-        if typ is list and key in data and not isinstance(data[key], list):
-            return False
+        if key in data and data[key] is not None:
+            if typ is list:
+                if not isinstance(data[key], list):
+                    return False
+            elif not isinstance(data[key], typ):
+                return False
     # requires the two fields consumers depend on to be present AND strings
     return (isinstance(data.get("company"), str) and data.get("company", "") != ""
             and isinstance(data.get("summary"), str) and data.get("summary", "") != "")
@@ -121,10 +128,22 @@ def _call(base_url: str, model: str, api_key: str, subject: str, body: str) -> d
         with urllib.request.urlopen(req, timeout=settings.llm_timeout_s) as resp:
             out = json.loads(resp.read().decode())
         content = out["choices"][0]["message"]["content"]
-        return json.loads(content)
+        return _extract_json(content)
     except Exception as e:  # network, HTTP, JSON parse
         log.warning("LLM call failed (%s %s): %s", base_url, model, e)
         raise
+
+
+def _extract_json(content: str) -> dict:
+    """Parse model output that may be wrapped in a markdown ```json fence."""
+    s = content.strip()
+    # strip a leading ```json / ``` and trailing ``` if present
+    if s.startswith("```"):
+        body = s.split("\n", 1)[1] if "\n" in s else s[3:]
+        if body.rstrip().endswith("```"):
+            body = body.rstrip()[:-3]
+        s = body.strip()
+    return json.loads(s)
 
 
 def summarize(subject: str, body: str) -> dict:

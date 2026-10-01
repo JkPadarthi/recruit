@@ -152,3 +152,20 @@ async def test_admin_stats_and_test_push_admin_ok(client, register):
     tr = await client.post("/api/admin/test-push", json={"user_id": uid, "title": "t", "body": "b"})
     assert tr.status_code == 200
     assert tr.json()["live_devices"] == 0
+
+
+from app.summarize import _extract_json, _normalize_aliases
+
+
+def test_extract_json_strips_markdown_fence():
+    assert _extract_json('```json\n{"a": 1}\n```') == {"a": 1}
+    assert _extract_json('```\n{"a": 2}\n```') == {"a": 2}
+    assert _extract_json('{"a": 3}') == {"a": 3}
+
+
+def test_normalize_flattens_nulls_and_aliases():
+    d = _normalize_aliases({"company_name": "X", "event_date": None, "deadline": None,
+                            "eligible_branches": None, "summary": "s"})
+    assert d["company"] == "X"
+    assert d["event_date"] == "" and d["deadline"] == "" 
+    assert d["eligible_branches"] == []
