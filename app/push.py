@@ -71,34 +71,67 @@ def send_to_subscription(sub: PushSubscription, payload: dict) -> bool:
         return False
 
 
-def notify_all(db: Session, ingest, matched_user_ids: set[int]) -> None:
-    """Broadcast ONE mail to every subscribed user. The user whose ID actually
-    matched the shortlist gets the special '✅ You're on the list' highlight;
-    everyone else gets a generic title. Ensures broadcast mails (test links,
-    announcements, etc.) ping everyone, not just matched IDs."""
+def url_kind(url: str) -> str:
+    """Classify a mail URL as 'test' (assessment/exam link) or 'register'
+    (apply/join/signup) or 'other'. Keyword-based — conservative."""
+    u = url.lower()
+    if any(k in u for k in (
+        "mettl", "authenticatekey", "testlink", "/test", "exambrowser",
+        "assessment", "proctor", "examray", "online-test", "skill-assessment",
+        "test-panel", "testimport", "testinvite", "/exam", "amplifire")):
+        return "test"
+    if any(k in u for k in (
+        "register", "signup", "/apply", "/join", "enroll", "application",
+        "careers", "hiring", "applynow", "forms", "jobapply", "candidate")):
+        return "register"
+    return "other"
+
+
+def notify_targeted(db: Session, ingest, matched_user_ids: set[int], has_ids: bool) -> None:
+    """Notify per the required policy. A user gets a push when ANY of:
+      1. their ID is in the mail (matched shortlist)  -> just that user
+      2. the mail has a REGISTRATION link             -> EVERYONE
+      3. the mail has a TEST link:
+           - IDs present  -> only the matched user(s)
+           - no IDs       -> EVERYONE
+    """
     if not ingest or not vapid_enabled():
         return
+    links = []
+    try:
+        links = json.loads(ingest.links or "[]") or []
+    except Exception:
+        links = []
+    kinds = {url_kind(u) for u in links}
+    has_test = "test" in kinds
+    has_reg = "register" in kinds
+
+    # decide recipient scope
+    notify_all_users = has_reg or (has_test and not has_ids)
     subs = db.execute(
         select(PushSubscription).where(PushSubscription.platform == "web")
     ).scalars().all()
-    if not subs:
+    if notify_all_users:
+        target = subs
+    else:
+        target = [s for s in subs if s.user_id in matched_user_ids]
+    if not target:
         return
+
     subject = ingest.subject or "a placement update"
-    is_shortlist = ingest.kind == "shortlist"
-    # flag that a link exists WITHOUT pasting a long URL into the notification —
-    # the full links live on the feed. Just tells the person to open Recruit.
-    has_link = False
-    try:
-        has_link = bool(json.loads(ingest.links or "[]"))
-    except Exception:
-        has_link = False
+    has_link = bool(links)
     body = subject
     if has_link:
         body = f"{subject}\n🔗 has an attached link — open the feed"
-    for sub in subs:
+
+    for sub in target:
         if sub.user_id in matched_user_ids:
             payload = {"title": "✅ You're on the list", "body": body}
-        elif is_shortlist:
+        elif has_test:
+            payload = {"title": "🧪 Test link available", "body": body}
+        elif has_reg:
+            payload = {"title": "📝 Registration open", "body": body}
+        elif ingest.kind == "shortlist":
             payload = {"title": "📋 New shortlist", "body": body}
         else:
             payload = {"title": "📢 New announcement", "body": body}

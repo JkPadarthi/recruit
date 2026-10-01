@@ -172,6 +172,7 @@ def test_normalize_flattens_nulls_and_aliases():
 
 
 from app.extract import extract_ids, classify, extract_urls
+from app.push import url_kind
 from app.util import normalize_id
 
 
@@ -196,3 +197,36 @@ def test_extract_urls_returns_links():
     assert extract_urls(body) == ["https://placement.vit.ac.in/2027/apply",
                                    "https://tests.mettl.com/ab12cd"]
     assert extract_urls("no links here") == []
+
+
+# ---- notification targeting policy -----------------------------------------
+def notify_logic(has_ids, links):
+    """Replicates notify_targeted's recipient decision (target=ALL vs matched)."""
+    from app.push import url_kind
+    kinds = {url_kind(u) for u in links}
+    has_test = "test" in kinds
+    has_reg = "register" in kinds
+    if has_reg or (has_test and not has_ids):
+        return "ALL"
+    return "MATCHED_ONLY"
+
+
+def test_notify_registration_link_pings_everyone():
+    # PWC-style registration link -> ALL users
+    assert notify_logic(has_ids=False, links=["https://app.joinsuperset.com/join/#/signup/student"]) == "ALL"
+    assert notify_logic(has_ids=True, links=["https://placement.vit.ac.in/apply/2027"]) == "ALL"
+
+
+def test_notify_test_link_no_ids_pings_everyone():
+    # Axxela-style test link, no register IDs present -> ALL users
+    assert notify_logic(has_ids=False, links=["https://tests.mettl.com/authenticateKey/a3gsbg4oao"]) == "ALL"
+
+
+def test_notify_test_link_with_ids_only_matched():
+    # test link + IDs present -> only matched users
+    assert notify_logic(has_ids=True, links=["https://tests.mettl.com/authenticateKey/a3gsbg4oao"]) == "MATCHED_ONLY"
+
+
+def test_notify_no_link_shortlist_only_matched():
+    # LMW-style: shortlist code, no link, not your ID -> matched users only (possibly none)
+    assert notify_logic(has_ids=True, links=[]) == "MATCHED_ONLY"

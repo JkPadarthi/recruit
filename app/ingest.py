@@ -171,11 +171,11 @@ def process_message(raw: bytes, msg_uid: str, db: Session, folder: str = "INBOX"
         created_hits = match_shortlist(db, ingest.id, extracted)
         if created_hits:
             matched_user_ids = {h.user_id for h in created_hits}
-    # BROADCAST: every new CDC mail pings every subscribed user, so broadcast
-    # mails (test links, announcements) are never missed. Matched users get
-    # the special highlight; everyone else gets a generic title.
-    from .push import notify_all
-    notify_all(db, ingest, matched_user_ids)
+    # POLICY: notify a user when their ID is in the mail, OR the mail has a
+    # registration/test link that's relevant to them. has_ids gates the
+    # test-link rule (test link + IDs present -> only matched users).
+    from .push import notify_targeted
+    notify_targeted(db, ingest, matched_user_ids, has_ids=bool(extracted))
     return kind
 
 
