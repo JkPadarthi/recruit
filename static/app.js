@@ -316,6 +316,20 @@ async function boot() {
   const pollBtn = document.getElementById('admin-poll');
   if (pollBtn) pollBtn.addEventListener('click', adminPoll);
   setInterval(() => { loadFeed().catch(console.warn); loadHits().catch(console.warn); }, POLL_MS);
+  // Refresh the moment the app is (re)opened or returns from background —
+  // PWA pages don't reload by themselves, so without this you'd stare at stale
+  // feed/hits until the next poll fires. Exposed on window so sw/push can ask.
+  window.recruitRefresh = function () {
+    loadFeed().catch(console.warn);
+    loadHits().catch(console.warn);
+    if (document.getElementById('admin-sec')) loadAdminStats().catch(console.warn);
+  };
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') window.recruitRefresh();
+  });
+  window.addEventListener('pageshow', () => window.recruitRefresh());
+  window.addEventListener('focus', () => window.recruitRefresh());
 }
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
