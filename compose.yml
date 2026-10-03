@@ -6,6 +6,7 @@ services:
     env_file: .env
     networks:
       - proxy
+      - monitoring          # expose /metrics to the homelab Prometheus
     dns:            # host gateway + public fallbacks (container DNS resolving wrong before)
       - 192.168.0.1
       - 1.1.1.1
@@ -58,4 +59,6 @@ services:
 
 networks:
   proxy:
+    external: true
+  monitoring:
     external: true
