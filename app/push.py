@@ -59,15 +59,22 @@ def send_to_subscription(sub: PushSubscription, payload: dict) -> bool:
             ttl=86400, timeout=10,
         )
         log.info("push OK -> user %s endpoint %s", sub.user_id, sub.endpoint[:40])
+        from .metrics import PUSH_SENT
+        PUSH_SENT.inc()
         return True
     except WebPushException as e:
+        from .metrics import PUSH_FAILED, PUSH_DEAD
         if getattr(e, "response", None) and e.response.status_code in (404, 410):
             log.warning("push endpoint dead (%s) user %s", e.response.status_code, sub.user_id)
+            PUSH_DEAD.inc()
         else:
             log.warning("push failed user %s: %s", sub.user_id, e)
+            PUSH_FAILED.inc()
         return False
     except Exception as e:
+        from .metrics import PUSH_FAILED
         log.warning("push error user %s: %s", sub.user_id, e)
+        PUSH_FAILED.inc()
         return False
 
 

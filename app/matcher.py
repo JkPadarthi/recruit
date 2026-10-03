@@ -38,6 +38,9 @@ def match_shortlist(db: Session, ingested_id: int, normalized_ids: Iterable[str]
                   normalized_id=uid.normalized_id)
         db.add(hit)
         created.append(hit)
-        log.info("hit: user=%s shortlist=%s id=%s", uid.user_id, ingested_id, uid.normalized_id)
+    if created:
+        from .metrics import HITS_CREATED
+        HITS_CREATED.inc(len(created))
+        log.info("match_shortlist hit created: %d | ids=%d", len(created), len(ids))
     db.commit()
     return created

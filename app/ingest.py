@@ -122,10 +122,14 @@ def _maybe_summarize(ingest: Ingested, subject: str, body: str) -> None:
         parsed = summarize(subject, body)
         ingest.summary = __import__("json").dumps(parsed, ensure_ascii=False)
         ingest.summary_status = "ok"
+        from .metrics import SUMMARY_OK
+        SUMMARY_OK.inc()
         log.info("uid %s summarized", ingest.msg_uid)
     except Exception as e:
         # FAIL-OPEN: keep the mail, mark deferred; never drop the alert
         ingest.summary_status = "deferred"
+        from .metrics import SUMMARY_DEFERRED
+        SUMMARY_DEFERRED.inc()
         log.warning("uid %s summary deferred: %s", ingest.msg_uid, e)
 
 
@@ -139,6 +143,8 @@ def process_message(raw: bytes, msg_uid: str, db: Session, folder: str = "INBOX"
 
     if db.execute(select(Ingested).where(Ingested.msg_uid == str(msg_uid))).scalar_one_or_none():
         log.info("uid %s duplicate", msg_uid)
+        from .metrics import MAILS_DUPLICATE
+        MAILS_DUPLICATE.inc()
         return "duplicate"
 
     subject = _dec(msg.get("Subject", ""))[:_HEADER_CUT]
@@ -178,6 +184,8 @@ def process_message(raw: bytes, msg_uid: str, db: Session, folder: str = "INBOX"
     # POLICY: notify a user when their ID is in the mail, OR the mail has a
     # registration/test link that's relevant to them. has_ids gates the
     # test-link rule (test link + IDs present -> only matched users).
+    from .metrics import MAILS_INGESTED
+    MAILS_INGESTED.labels(kind).inc()
     from .push import notify_targeted
     notify_targeted(db, ingest, matched_user_ids, has_ids=bool(extracted))
     return kind
@@ -253,6 +261,8 @@ def poll_once(db) -> dict:
 
             uids = new_uids(M, st.last_uid)
             processed = [0, 0]  # [shortlist, announcement]
+            from .metrics import POLLS_RUN
+            POLLS_RUN.inc()
             for uid in uids:
                 raw = fetch_raw(M, uid)
                 if not raw:

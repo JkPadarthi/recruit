@@ -8,3 +8,4 @@ xlrd
 PyYAML
 pywebpush
 python-dotenv
+prometheus-client>=0.20

@@ -293,6 +293,14 @@ def health():
     """Lightweight liveness probe for the compose healthcheck."""
     return {"ok": True}
 
+# Prometheus /metrics — scraped by the homelab Prometheus (job "recruit").
+@app.get("/metrics")
+def metrics():
+    from fastapi.responses import Response
+    from .metrics import render
+    from prometheus_client import CONTENT_TYPE_LATEST
+    return Response(content=render(db), media_type=CONTENT_TYPE_LATEST)
+
 
 @app.post("/api/admin/poll")
 def admin_poll(request: Request):
