@@ -16,6 +16,30 @@ _URL_RE = re.compile(
 RESULT_KEYWORDS = ["shortlist", "selection list", "selected list",
                    "selected students", "final list"]
 
+# --- Final-outcome detection -------------------------------------------------
+# Distinguishes a FINAL selection/offer (student got in) from a bare shortlist
+# (still in the running). Drives the celebratory notification vs the plain one.
+# Conservative on purpose: a mail that merely opens with "Congratulations" but
+# only says "shortlisted" must NOT be celebrated as a win.
+_SELECTION_PHRASES = (
+    "selection list", "selected list", "selected students", "selected candidates",
+    "list of selected", "final list", "final selection",
+    "you have been selected", "you've been selected", "you are selected",
+    "have been selected", "has been selected", "been selected",
+    "offer letter", "you have been placed", "has been placed", "been placed",
+)
+
+
+def detect_outcome(subject: str, body: str, extracted: set[str] | None = None,
+                   has_spreadsheet: bool = False) -> str:
+    """'selection' when the mail announces a FINAL result (selected/offered),
+    else 'shortlist'. Only meaningful for mails already classified as a result."""
+    text = f"{subject} {body}".lower()
+    if any(p in text for p in _SELECTION_PHRASES):
+        return "selection"
+    return "shortlist"
+
+
 SPREADSHEET_EXTS = (".xlsx", ".xls", ".csv")
 
 

@@ -87,6 +87,16 @@ def url_kind(url: str) -> str:
     return "other"
 
 
+def _company_from_summary(ingest) -> str:
+    """Best-effort company name from the stored LLM summary (for celebrating)."""
+    try:
+        s = json.loads(ingest.summary or "{}")
+        c = (s.get("company") or "").strip()
+        return c
+    except Exception:
+        return ""
+
+
 def notify_targeted(db: Session, ingest, matched_user_ids: set[int], has_ids: bool) -> None:
     """Notify per the required policy. A user gets a push when ANY of:
       1. their ID is in the mail (matched shortlist)  -> just that user
@@ -137,9 +147,20 @@ def notify_targeted(db: Session, ingest, matched_user_ids: set[int], has_ids: bo
     if has_link:
         body = f"{subject}\n🔗 has an attached link — open the feed"
 
+    # FINAL selection (offer / selected) gets a celebration, not the flat
+    # "on the list" line. Company pulled from the summary when available.
+    is_selection = getattr(ingest, "outcome", "") == "selection"
+    company = _company_from_summary(ingest) if is_selection else ""
+    selection_title = (f"🎉🎊 CONGRATULATIONS — you got selected for {company}!"
+                       if company else
+                       "🎉🎊 CONGRATULATIONS — you got selected!")
+
     for sub in target:
         if sub.user_id in matched_user_ids:
-            payload = {"title": "✅ You're on the list", "body": body}
+            if is_selection:
+                payload = {"title": selection_title, "body": body}
+            else:
+                payload = {"title": "✅ You're on the list", "body": body}
         elif has_test:
             payload = {"title": "🧪 Test link available", "body": body}
         elif has_reg:

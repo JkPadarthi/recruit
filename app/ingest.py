@@ -25,6 +25,7 @@ from .config import settings
 from .extract import (
     SPREADSHEET_EXTS,
     classify,
+    detect_outcome,
     extract_ids,
     extract_ids_from_spreadsheet,
     extract_urls,
@@ -146,12 +147,15 @@ def process_message(raw: bytes, msg_uid: str, db: Session, folder: str = "INBOX"
     sheet_ids, has_attach = _spreadsheet_ids_from_msg(msg)
     extracted = sheet_ids | extract_ids(body)
     kind = classify(subject, body, extracted, has_attach)
+    # FINAL selection vs mere shortlist — persisted so the push (and any
+    # later reprocessing) can celebrate a win without re-reading the body.
+    outcome = detect_outcome(subject, body, extracted, has_attach) if kind == "shortlist" else ""
 
     from .summarize import content_hash
     chash = content_hash(subject, body)
 
     ingest = Ingested(msg_uid=str(msg_uid), folder=folder, subject=subject,
-                      from_addr=addr, date=date, kind=kind,
+                      from_addr=addr, date=date, kind=kind, outcome=outcome,
                       eligible_branches=parse_eligible_branches(body)[:_HEADER_CUT],
                       links=json.dumps(extract_urls(body), ensure_ascii=False),
                       content_hash=chash)

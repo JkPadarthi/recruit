@@ -232,6 +232,37 @@ def test_notify_no_link_shortlist_only_matched():
     assert notify_logic(has_ids=True, links=[]) == "MATCHED_ONLY"
 
 
+# ---- celebratory title for FINAL selections ---------------------------------
+def notify_title(outcome, company="", matched=True, has_test=False, has_reg=False, kind="shortlist"):
+    """Mirror of notify_targeted's title decision (VAPID blanked in tests)."""
+    if matched:
+        if outcome == "selection":
+            return (f"🎉🎊 CONGRATULATIONS — you got selected for {company}!"
+                    if company else "🎉🎊 CONGRATULATIONS — you got selected!")
+        return "✅ You're on the list"
+    if has_test:
+        return "🧪 Test link available"
+    if has_reg:
+        return "📝 Registration open"
+    if kind == "shortlist":
+        return "📋 New shortlist"
+    return "📢 New announcement"
+
+
+def test_title_final_selection_is_celebratory():
+    t = notify_title("selection", company="Deloitte India")
+    assert t.startswith("🎉🎊 CONGRATULATIONS")
+    assert "Deloitte India" in t
+
+
+def test_title_selection_without_company_still_celebrates():
+    assert notify_title("selection") == "🎉🎊 CONGRATULATIONS — you got selected!"
+
+
+def test_title_plain_shortlist_stays_flat():
+    assert notify_title("shortlist") == "✅ You're on the list"
+
+
 # ---- eligibility / division condition --------------------------------------
 from app.extract import audience_matches, parse_audience
 

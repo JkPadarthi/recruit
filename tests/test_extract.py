@@ -28,3 +28,27 @@ def test_classify_embedded_ids_shortlist():
 
 def test_classify_plain_announcement():
     assert classify("Internship drive", "sharing details", set(), False) == "announcement"
+
+
+# ---- final-outcome detection (selection vs shortlist) ----------------------
+from app.extract import detect_outcome
+
+
+def test_detect_outcome_final_selection_congrats():
+    # Deloitte-style: final selection list -> celebrate
+    assert detect_outcome("Congratulations!! Deloitte India Dream Internship / "
+                          "Placement Offer Selection List - 2027 Batch",
+                          "23BAI0056 has been selected.") == "selection"
+
+
+def test_detect_outcome_offer_letter_is_selection():
+    assert detect_outcome("Offer Letter", "You have been selected for the role") == "selection"
+
+
+def test_detect_outcome_bare_shortlist_is_not_selection():
+    # "Congratulations! You are shortlisted" is a shortlist, NOT a win
+    assert detect_outcome("Congratulations!", "You have been shortlisted for the online test") == "shortlist"
+
+
+def test_detect_outcome_neutral_result_is_shortlist():
+    assert detect_outcome("Results", "23BAI0021 listed here") == "shortlist"
