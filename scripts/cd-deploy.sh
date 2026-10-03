@@ -15,6 +15,10 @@ if [ "$now_h" -lt 22 ]; then
     exit 0
 fi
 
+# Serialize deploys: a 5-min timer must never collide with an in-flight build.
+exec 9>"$REPO/data/logs/cd.lock"
+flock -n 9 || { echo "$(date '+%F %T') skip: a deploy is already running" >> "$LOG"; exit 0; }
+
 cd "$REPO"
 git fetch --quiet origin main 2>>"$LOG" || true
 local="$(git rev-parse HEAD)"
