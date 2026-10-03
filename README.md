@@ -185,3 +185,17 @@ Dockerfile      non-root runtime, /data mounted volumes
 - **Migration / rehost** — copy the whole project *including* `data/`
   (the live DB) and `secrets/`, then bring the stack up; see §4 warning about
   not dual-polling.
+
+## CI / CD (CI every push; deploy only at night — "CI/DD")
+- **CI** — GitHub Actions (`.github/workflows/test.yml`) runs the offline `pytest`
+  suite on every push/PR. Green/red check on the repo; no secrets needed.
+- **CD** — `scripts/cd-deploy.sh`, driven by the `recruit-cd.timer` systemd unit
+  on the production host **abhi**, runs every 5 minutes. It is a cheap no-op
+  during the day and only pulls+rebuilds+restarts **between 22:00 and 00:00 IST**
+  AND when `origin/main` actually moved. `flock` serializes so a 5-min timer
+  never collides with an in-flight Pi-4 build.
+- **Test the loop safely**: editing the README (not COPYd into the image) is the
+  perfect smoke test — it triggers CI + CD's "origin moved" gate with a
+  cache-hit build.
+- **Watch it work**: `tail -f ~/Projects/recruit/data/logs/cd.log` on abhi.
+  `up to date` = nothing new; `night-window deploy … -> <sha>` = a real deploy.
