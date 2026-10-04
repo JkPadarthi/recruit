@@ -18,3 +18,4 @@ secrets/
 # Design docs
 *.md
 !README.md
+!CONTRIBUTING.md
