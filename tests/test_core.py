@@ -206,15 +206,27 @@ def notify_logic(has_ids, links):
     kinds = {url_kind(u) for u in links}
     has_test = "test" in kinds
     has_reg = "register" in kinds
-    if has_reg or (has_test and not has_ids):
+    # broadcast a link (register OR test) ONLY when the mail has no IDs;
+    # when IDs are present the mail is a targeted shortlist — matched only.
+    if (has_reg or has_test) and not has_ids:
         return "ALL"
     return "MATCHED_ONLY"
 
 
 def test_notify_registration_link_pings_everyone():
-    # PWC-style registration link -> ALL users
+    # PWC-style registration link, NO ids -> ALL users
     assert notify_logic(has_ids=False, links=["https://app.joinsuperset.com/join/#/signup/student"]) == "ALL"
-    assert notify_logic(has_ids=True, links=["https://placement.vit.ac.in/apply/2027"]) == "ALL"
+
+
+def test_notify_registration_link_with_ids_only_matched():
+    # targeted shortlist carrying a form/registration link + IDs -> matched only
+    assert notify_logic(has_ids=True, links=["https://placement.vit.ac.in/apply/2027"]) == "MATCHED_ONLY"
+
+
+def test_notify_forms_gle_link_not_broadcast():
+    # a bare forms.gle link is the next round's form, not an open drive ->
+    # no auto "register" classification (would otherwise ping everyone)
+    assert notify_logic(has_ids=True, links=["https://forms.gle/QxmUx3aeEyLsU9bYA"]) == "MATCHED_ONLY"
 
 
 def test_notify_test_link_no_ids_pings_everyone():

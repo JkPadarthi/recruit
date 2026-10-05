@@ -80,8 +80,17 @@ def send_to_subscription(sub: PushSubscription, payload: dict) -> bool:
 
 def url_kind(url: str) -> str:
     """Classify a mail URL as 'test' (assessment/exam link) or 'register'
-    (apply/join/signup) or 'other'. Keyword-based — conservative."""
+    (apply/join/signup) or 'other'. Keyword-based — conservative.
+
+    NOTE: never treat a bare `forms.gle` short domain as a "register" link —
+    a Google Form on a *targeted* shortlist mail is just the next round's form,
+    not an open registration drive. Only keyword-bearing paths/long URLs count.
+    """
     u = url.lower()
+    # A bare `forms.gle` short link is the next round's form, not an open
+    # application drive — never treat it as "register".
+    if u.startswith("https://forms.gle/") or u.startswith("http://forms.gle/"):
+        return "other"
     if any(k in u for k in (
         "mettl", "authenticatekey", "testlink", "/test", "exambrowser",
         "assessment", "proctor", "examray", "online-test", "skill-assessment",
@@ -132,7 +141,11 @@ def notify_targeted(db: Session, ingest, matched_user_ids: set[int], has_ids: bo
     users = {u.id: u for u in db.execute(select(User)).scalars().all()}
 
     # decide recipient scope
-    notify_all_users = has_reg or (has_test and not has_ids)
+    # POLICY: broadcast a link (register OR test) to ALL users ONLY when the
+    # mail has no register IDs. When IDs ARE present, the mail is a *targeted*
+    # shortlist (e.g. "Citi next round" with 73 IDs) — its links are for the
+    # matched students, not everyone. Return matched users in that case.
+    notify_all_users = (has_reg or has_test) and not has_ids
     subs = db.execute(
         select(PushSubscription).where(PushSubscription.platform == "web")
     ).scalars().all()
