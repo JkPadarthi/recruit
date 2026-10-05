@@ -199,3 +199,13 @@ Dockerfile      non-root runtime, /data mounted volumes
   cache-hit build.
 - **Watch it work**: `tail -f ~/Projects/recruit/data/logs/cd.log` on abhi.
   `up to date` = nothing new; `night-window deploy … -> <sha>` = a real deploy.
+- **Hotfix escape hatch (urgent fixes, bypass the window):**
+  ```bash
+  # one-shot on the host: rebuild+restart current HEAD immediately
+  scripts/cd-deploy.sh --force
+  # or, without SSH: arm the next 5-min tick to deploy out-of-window once
+  touch data/logs/cd.force        # consumed by the next tick, then removed
+  ```
+  `--force` skips BOTH the night-window gate and the up-to-date check, so it
+  always ends with a fresh build + `--force-recreate`. Use it for a live bug
+  fix that can't wait until 22:00; the normal timer path is unchanged.
