@@ -226,3 +226,10 @@ tail -f ~/Projects/recruit/data/logs/cd.log
 # deployed abc1234 (healthy)      -> success
 # HEALTH FAILED … / rolled back … -> the seatbelt caught a bad deploy
 ```
+
+---
+
+## Contributing
+
+See [`CONTRIBUTING.md`](./CONTRIBUTING.md) — dev setup, the offline test suite,
+coding conventions, and what the CI/CD pipeline does with your change.
