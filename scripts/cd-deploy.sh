@@ -1,63 +1,123 @@
 #!/usr/bin/env bash
-# Recruit CD gate — deploy ONLY between 22:00 and 00:00 IST, UNLESS forced.
+# Recruit CI/CD — deploy on push to main, with a seatbelt.
 #
-# Usage:
-#   scripts/cd-deploy.sh             # normal: timer-driven, night-window gated
-#   scripts/cd-deploy.sh --force     # URGENT hotfix: bypass the window AND the
-#                                    #   up-to-date check; rebuild+restart HEAD now
-#   touch data/logs/cd.force         # arm the NEXT timer tick to bypass the
-#                                    #   window once (no SSH needed); consumed on use
+# Behaviour:
+#   * Deploys automatically when origin/main moves (no night-window gate).
+#   * CI gate: if secrets/github_ci_token exists, the pushed commit's GitHub
+#     Actions run must be GREEN before we deploy (a private repo needs a token
+#     to read check-runs). Without the token it proceeds with a loud WARN.
+#   * Per-SHA image tag (recruit:<sha>) so we can roll back.
+#   * Post-deploy HEALTH GATE on recruit-app-1; if unhealthy -> AUTO-ROLLBACK
+#     to the last known-good tag (data/logs/last_good).
+#   * OPT-IN quiet hours: `touch data/logs/night_only` restores the old
+#     22:00-00:00-only window (for a sensitive/exam period you want frozen).
 #
-# A systemd timer runs this every 5 min. During the day it is a cheap no-op,
-# so daytime pushes wait for the window. --force / the sentinel are the escape
-# hatch for a live bug fix that must not wait until 22:00.
+# Escape hatches:
+#   scripts/cd-deploy.sh --force   # hotfix: skip quiet-hours + CI gate, deploy now
+#   touch data/logs/cd.force       # arm the next 5-min tick the same way
+#
+# Driven by recruit-cd.timer (every 5 min). Logs every decision to data/logs/cd.log.
 set -euo pipefail
 
 REPO="${HOME}/Projects/recruit"
 LOG="${REPO}/data/logs/cd.log"
+LOCK="${REPO}/data/logs/cd.lock"
 FORCE_FILE="${REPO}/data/logs/cd.force"
+QUIET_FILE="${REPO}/data/logs/night_only"
+LASTGOOD="${REPO}/data/logs/last_good"
+TOKEN_FILE="${REPO}/secrets/github_ci_token"
+REPO_SLUG="JkPadarthi/recruit"
+APP="recruit-app-1"
 
-# --- is this a forced (out-of-window) deploy? ---
+log() { echo "$(date '+%F %T') $*" >> "$LOG"; }
+
+# --- forced (hotfix) deploy? ---
 FORCE=0
 [ "${1:-}" = "--force" ] && FORCE=1
-[ -f "$FORCE_FILE" ] && FORCE=1          # sentinel arms the next tick
+[ -f "$FORCE_FILE" ] && FORCE=1
 
+# --- optional quiet hours (opt-in; default OFF = deploy any time) ---
 now_h="$(TZ=Asia/Kolkata date +%H)"
-if [ "$FORCE" -eq 0 ] && [ "$now_h" -lt 22 ]; then
-    echo "$(date '+%F %T') skip: outside night window (hour=$now_h)" >> "$LOG"
-    exit 0
+if [ "$FORCE" -eq 0 ] && [ -f "$QUIET_FILE" ] && [ "$now_h" -lt 22 ]; then
+    log "skip: quiet-hours (hour=$now_h, data/logs/night_only set)"; exit 0
 fi
 
 # Serialize deploys: a 5-min timer must never collide with an in-flight build.
-exec 9>"$REPO/data/logs/cd.lock"
-flock -n 9 || { echo "$(date '+%F %T') skip: a deploy is already running" >> "$LOG"; exit 0; }
+exec 9>"$LOCK"
+flock -n 9 || { log "skip: a deploy is already running"; exit 0; }
 
 cd "$REPO"
 git fetch --quiet origin main 2>>"$LOG" || true
 local="$(git rev-parse HEAD)"
 remote="$(git rev-parse origin/main)"
 
-if [ "$FORCE" -eq 1 ]; then
-    # Force: deploy current HEAD now, even if nothing new (rebuild + restart).
-    echo "$(date '+%F %T') FORCED deploy (out-of-window) HEAD=${local:0:7} remote=${remote:0:7}" >> "$LOG"
-    git pull --ff-only --quiet origin main 2>>"$LOG" || true
-    local="$(git rev-parse HEAD)"
-    docker compose build app worker >>"$LOG" 2>&1
-    docker compose up -d --force-recreate app worker >>"$LOG" 2>&1
-    echo "$(date '+%F %T') deployed ${local:0:7} (forced)" >> "$LOG"
-    rm -f "$FORCE_FILE"
-    exit 0
+if [ "$local" = "$remote" ] && [ "$FORCE" -eq 0 ]; then
+    log "up to date (${local:0:7})"; rm -f "$FORCE_FILE"; exit 0
 fi
 
-if [ "$local" = "$remote" ]; then
-    echo "$(date '+%F %T') up to date (${local:0:7})" >> "$LOG"
-    rm -f "$FORCE_FILE"
-    exit 0
+# target the remote SHA (or current HEAD on a forced redeploy)
+if [ "$local" != "$remote" ]; then
+    target_full="$remote"
+else
+    target_full="$local"
+fi
+short="${target_full:0:7}"
+
+# --- CI gate (require green) ---
+if [ "$FORCE" -eq 0 ]; then
+    if [ -f "$TOKEN_FILE" ]; then
+        tok="$(cat "$TOKEN_FILE")"
+        concl="$(curl -fsS -H "Authorization: token $tok" \
+            "https://api.github.com/repos/$REPO_SLUG/commits/$target_full/check-runs" 2>/dev/null \
+            | python3 -c 'import sys,json
+d=json.load(sys.stdin); runs=d.get("check_runs",[])
+print("pending" if not runs or any(r.get("status")!="completed" for r in runs)
+      else ("failure" if any(r.get("conclusion") not in ("success","skipped","neutral") for r in runs)
+      else "success"))' 2>/dev/null || echo unknown)"
+        if [ "$concl" != "success" ]; then
+            log "skip: CI not green for $short (=$concl)"; exit 0
+        fi
+        log "CI green for $short"
+    else
+        log "WARN: no $TOKEN_FILE — deploying $short WITHOUT a CI gate"
+    fi
 fi
 
-echo "$(date '+%F %T') night-window deploy ${local:0:7} -> ${remote:0:7}" >> "$LOG"
+log "${FORCE:+FORCED }deploy ${local:0:7} -> $short"
 git pull --ff-only --quiet origin main 2>>"$LOG" || true
-docker compose build app worker >>"$LOG" 2>&1
+
+if ! docker compose build app worker >>"$LOG" 2>&1; then
+    log "build FAILED — leaving the running version untouched"; exit 1
+fi
+docker tag recruit:latest "recruit:$short" >>"$LOG" 2>&1 || true
+
+prev=""; [ -f "$LASTGOOD" ] && prev="$(cat "$LASTGOOD")"
+
 docker compose up -d --force-recreate app worker >>"$LOG" 2>&1
-echo "$(date '+%F %T') deployed ${remote:0:7}" >> "$LOG"
+
+# --- health gate ---
+st="unknown"
+for _ in $(seq 1 30); do
+    sleep 3
+    st="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}nohealth{{end}}' "$APP" 2>/dev/null || echo missing)"
+    [ "$st" = "healthy" ] && break
+done
+
+if [ "$st" = "healthy" ]; then
+    printf '%s\n' "$short" > "$LASTGOOD"
+    log "deployed $short (healthy)"
+    rm -f "$FORCE_FILE"; exit 0
+fi
+
+# --- auto-rollback ---
+log "HEALTH FAILED for $short (status=$st)"
+if [ -n "$prev" ] && [ "$prev" != "$short" ] && docker image inspect "recruit:$prev" >/dev/null 2>&1; then
+    log "rollback -> $prev"
+    docker tag "recruit:$prev" recruit:latest >>"$LOG" 2>&1
+    docker compose up -d --force-recreate app worker >>"$LOG" 2>&1
+    log "rolled back to $prev"
+else
+    log "no known-good image to roll back to; $short left in place (investigate)"
+fi
 rm -f "$FORCE_FILE"
+exit 1

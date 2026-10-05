@@ -186,26 +186,43 @@ Dockerfile      non-root runtime, /data mounted volumes
   (the live DB) and `secrets/`, then bring the stack up; see §4 warning about
   not dual-polling.
 
-## CI / CD (CI every push; deploy only at night — "CI/DD")
+## CI / CD — deploy on green push, with a seatbelt
+
 - **CI** — GitHub Actions (`.github/workflows/test.yml`) runs the offline `pytest`
   suite on every push/PR. Green/red check on the repo; no secrets needed.
 - **CD** — `scripts/cd-deploy.sh`, driven by the `recruit-cd.timer` systemd unit
-  on the production host **abhi**, runs every 5 minutes. It is a cheap no-op
-  during the day and only pulls+rebuilds+restarts **between 22:00 and 00:00 IST**
-  AND when `origin/main` actually moved. `flock` serializes so a 5-min timer
-  never collides with an in-flight Pi-4 build.
-- **Test the loop safely**: editing the README (not COPYd into the image) is the
-  perfect smoke test — it triggers CI + CD's "origin moved" gate with a
-  cache-hit build.
-- **Watch it work**: `tail -f ~/Projects/recruit/data/logs/cd.log` on abhi.
-  `up to date` = nothing new; `night-window deploy … -> <sha>` = a real deploy.
-- **Hotfix escape hatch (urgent fixes, bypass the window):**
+  on the production host **abhi**, every 5 minutes. When `origin/main` moves it
+  **pulls + rebuilds + restarts** (no fixed window). `flock` serializes so a
+  5-min tick never collides with an in-flight Pi-4 build.
+
+### The seatbelt (safety rails on an auto-deploy)
+- **CI-green gate** — drop a read-only GitHub token at
+  `secrets/github_ci_token` (fine-grained: *Actions: read*, *Contents: read*)
+  and CD only deploys when that commit's Actions run is **green**. Without the
+  token it still deploys but logs a loud `WARN: … WITHOUT a CI gate`.
+- **Per-SHA image tags** — every build is tagged `recruit:<short-sha>` in
+  addition to `recruit:latest`, so a bad deploy has something to fall back to.
+- **Health gate + auto-rollback** — after `up`, the script waits for
+  `recruit-app-1` to report `healthy`; if it doesn't, it **re-tags the last
+  known-good image** (recorded in `data/logs/last_good`) as `latest` and
+  recreates. A failed deploy never silently stays live.
+- **Opt-in quiet hours** — `touch data/logs/night_only` restores the old
+  **22:00–00:00 IST-only** window (for a sensitive/exam period you want frozen).
+  Remove the file to go back to deploy-on-push.
+- **Hotfix escape hatch** — for an urgent fix:
   ```bash
-  # one-shot on the host: rebuild+restart current HEAD immediately
-  scripts/cd-deploy.sh --force
-  # or, without SSH: arm the next 5-min tick to deploy out-of-window once
-  touch data/logs/cd.force        # consumed by the next tick, then removed
+  scripts/cd-deploy.sh --force   # skip quiet-hours + CI gate, deploy now
+  touch data/logs/cd.force       # or arm the next 5-min tick (no SSH)
   ```
-  `--force` skips BOTH the night-window gate and the up-to-date check, so it
-  always ends with a fresh build + `--force-recreate`. Use it for a live bug
-  fix that can't wait until 22:00; the normal timer path is unchanged.
+  `--force` skips quiet-hours and the CI gate but still health-gates + rolls
+  back.
+
+### Watching it
+```bash
+tail -f ~/Projects/recruit/data/logs/cd.log
+# up to date (abc1234)            -> nothing new
+# CI green for abc1234            -> gate passed
+# deploy abc1234 -> abc1234       -> deploying
+# deployed abc1234 (healthy)      -> success
+# HEALTH FAILED … / rolled back … -> the seatbelt caught a bad deploy
+```
