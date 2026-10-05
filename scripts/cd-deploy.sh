@@ -64,23 +64,35 @@ fi
 short="${target_full:0:7}"
 
 # --- CI gate (require green) ---
-if [ "$FORCE" -eq 0 ]; then
-    if [ -f "$TOKEN_FILE" ]; then
-        tok="$(cat "$TOKEN_FILE")"
-        concl="$(curl -fsS -H "Authorization: token $tok" \
+# Prefer the authenticated `gh` CLI on this host (already logged in as the repo
+# owner); fall back to a token file; else skip the gate with a loud WARN.
+ci_conclusion() {
+    local runs_json=""
+    if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+        runs_json="$(gh api "repos/$REPO_SLUG/commits/$target_full/check-runs" \
+            --jq '.check_runs | map({status, conclusion})' 2>/dev/null)" || true
+    elif [ -f "$TOKEN_FILE" ]; then
+        runs_json="$(curl -fsS -H "Authorization: token $(cat "$TOKEN_FILE")" \
             "https://api.github.com/repos/$REPO_SLUG/commits/$target_full/check-runs" 2>/dev/null \
-            | python3 -c 'import sys,json
-d=json.load(sys.stdin); runs=d.get("check_runs",[])
+            | python3 -c 'import sys,json;print(json.dumps(json.load(sys.stdin).get("check_runs",[])))' 2>/dev/null)" || true
+    else
+        echo "nogate"; return
+    fi
+    if [ -z "$runs_json" ]; then echo "unknown"; return; fi
+    printf '%s' "$runs_json" | python3 -c 'import sys,json
+runs=json.load(sys.stdin)
 print("pending" if not runs or any(r.get("status")!="completed" for r in runs)
       else ("failure" if any(r.get("conclusion") not in ("success","skipped","neutral") for r in runs)
-      else "success"))' 2>/dev/null || echo unknown)"
-        if [ "$concl" != "success" ]; then
-            log "skip: CI not green for $short (=$concl)"; exit 0
-        fi
-        log "CI green for $short"
-    else
-        log "WARN: no $TOKEN_FILE — deploying $short WITHOUT a CI gate"
-    fi
+      else "success"))'
+}
+
+if [ "$FORCE" -eq 0 ]; then
+    concl="$(ci_conclusion)"
+    case "$concl" in
+        success) log "CI green for $short" ;;
+        nogate)  log "WARN: no gh auth or $TOKEN_FILE — deploying $short WITHOUT a CI gate" ;;
+        *)       log "skip: CI not green for $short (=$concl)"; exit 0 ;;
+    esac
 fi
 
 log "${FORCE:+FORCED }deploy ${local:0:7} -> $short"

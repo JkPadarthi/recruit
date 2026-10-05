@@ -196,10 +196,10 @@ Dockerfile      non-root runtime, /data mounted volumes
   5-min tick never collides with an in-flight Pi-4 build.
 
 ### The seatbelt (safety rails on an auto-deploy)
-- **CI-green gate** — drop a read-only GitHub token at
-  `secrets/github_ci_token` (fine-grained: *Actions: read*, *Contents: read*)
-  and CD only deploys when that commit's Actions run is **green**. Without the
-  token it still deploys but logs a loud `WARN: … WITHOUT a CI gate`.
+- **CI-green gate** — CD reads the pushed commit's Actions result via the
+  authenticated `gh` CLI already on abhi (fallback: a read-only token at
+  `secrets/github_ci_token`), and only deploys when it is **green**. With
+  neither, it still deploys but logs a loud `WARN: … WITHOUT a CI gate`.
 - **Per-SHA image tags** — every build is tagged `recruit:<short-sha>` in
   addition to `recruit:latest`, so a bad deploy has something to fall back to.
 - **Health gate + auto-rollback** — after `up`, the script waits for
