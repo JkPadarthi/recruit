@@ -57,6 +57,15 @@ def _chain() -> list[dict]:
         chain[0].update({"base_url": settings.llm_base_url,
                          "api_key": settings.llm_api_key,
                          "model": settings.llm_model or chain[0]["model"]})
+    # Propagate the configured key to every provider that lacks one. The local
+    # Ollama tier ignores auth, but OpenRouter requires a key EVEN for `:free`
+    # models -- without a key those calls 401 before the model is reached, so
+    # the whole fallback ladder is inert and any P0 hiccup (timeout, bad JSON)
+    # falls straight through to summary_status='deferred'.
+    if settings.llm_api_key:
+        for m in chain:
+            if not m.get("api_key"):
+                m["api_key"] = settings.llm_api_key
     return [m for m in chain if m.get("base_url")]
 
 

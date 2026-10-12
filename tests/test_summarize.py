@@ -43,3 +43,40 @@ def test_default_chain_ordered():
     assert "gemma" in models[1].lower()
     assert "nemotron" in models[2].lower()
     assert "qwen" in models[3].lower()
+
+
+def test_chain_propagates_key_to_every_provider(monkeypatch):
+    """A configured LLM_API_KEY must reach EVERY chain entry, not just P0.
+
+    OpenRouter requires a key even for `:free` models, so when the key only
+    landed on P0 (local Ollama, which ignores auth) every fallback call 401'd
+    and the ladder was silently inert -> mass `deferred`.
+    """
+    import app.summarize as s
+
+    class _Fake:
+        llm_base_url = "http://127.0.0.1:11434/v1"
+        llm_model = "gemma4:12b"
+        llm_api_key = "test-key-not-a-secret"
+
+    monkeypatch.setattr(s, "settings", _Fake, raising=False)
+    chain = s._chain()
+    assert chain, "chain must not be empty"
+    assert all(m.get("api_key") == "test-key-not-a-secret" for m in chain), chain
+    # the remote tiers specifically must be authenticated
+    remote = [m for m in chain if "openrouter" in m["base_url"]]
+    assert remote and all(m["api_key"] for m in remote)
+
+
+def test_chain_without_key_still_builds(monkeypatch):
+    """No key configured => chain still resolves (fail-open), just unauthenticated."""
+    import app.summarize as s
+
+    class _Fake:
+        llm_base_url = "http://127.0.0.1:11434/v1"
+        llm_model = "gemma4:12b"
+        llm_api_key = ""
+
+    monkeypatch.setattr(s, "settings", _Fake, raising=False)
+    chain = s._chain()
+    assert chain and all(m.get("base_url") for m in chain)
