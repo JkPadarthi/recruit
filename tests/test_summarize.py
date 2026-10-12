@@ -37,12 +37,13 @@ def test_chain_skips_empty_bases():
 
 
 def test_default_chain_ordered():
-    # P0 local first, then gemma, nemotron, qwen
+    # P0 local first, then gemma:free, nemotron-super:free, nemotron-ultra:free
+    # (P3 was qwen/qwen3.8-27b:free until its free slug was withdrawn -> 404)
     models = [m["model"] for m in DEFAULT_CHAIN]
     assert models[0] == "gemma4:12b"
     assert "gemma" in models[1].lower()
-    assert "nemotron" in models[2].lower()
-    assert "qwen" in models[3].lower()
+    assert "super" in models[2].lower()      # nvidia/nemotron-3-super-120b-a12b:free
+    assert "ultra" in models[3].lower()      # nvidia/nemotron-3-ultra-550b-a55b:free
 
 
 def test_chain_propagates_key_to_every_provider(monkeypatch):

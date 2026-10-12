@@ -4,9 +4,10 @@ Deterministic matcher stays the source of truth; this layer only produces a
 human-readable structured summary + advisory flags. It can never hide or invent
 a selection — worst case it degrades to shipping the raw mail (fail-open).
 
-Priority chain (locked 2026-10-01):
+Priority chain (locked 2026-10-01; P3 re-pointed 2026-10-12 because the original
+qwen3.8-27b:free slug was WITHDRAWN from the free tier and 404'd):
   P0 local Ollama gemma4:12b  ->  P1 gemma-4-26b:free  ->  P2 nemotron-super:free
-  ->  P3 qwen3.8-27b:free  ->  fail-open ship raw mail (summary_status='deferred')
+  ->  P3 nemotron-ultra-550b:free  ->  fail-open ship raw mail (summary_status='deferred')
 """
 from __future__ import annotations
 
@@ -40,7 +41,7 @@ DEFAULT_CHAIN: list[dict] = [
     {"base_url": "", "api_key": "", "model": "gemma4:12b",             "kind": "local"},
     {"base_url": "https://openrouter.ai/api/v1", "api_key": "", "model": "google/gemma-4-26b-a4b-it:free", "kind": "openrouter"},
     {"base_url": "https://openrouter.ai/api/v1", "api_key": "", "model": "nvidia/nemotron-3-super-120b-a12b:free", "kind": "openrouter"},
-    {"base_url": "https://openrouter.ai/api/v1", "api_key": "", "model": "qwen/qwen3.8-27b:free",          "kind": "openrouter"},
+    {"base_url": "https://openrouter.ai/api/v1", "api_key": "", "model": "nvidia/nemotron-3-ultra-550b-a55b:free", "kind": "openrouter"},
 ]
 
 
