@@ -23,6 +23,16 @@ services:
       timeout: 5s
       retries: 3
       start_period: 15s
+    # Resource guardrails — from a 7-day Prometheus profile on abhi
+    # (2026-11-09..16): mem p50 124 MiB / peak 161.6 MiB, CPU peak 0.066 cores.
+    # 384m = ~2.4x peak, so a leak is contained without ever OOM-killing the feed.
+    # memswap_limit == mem_limit: abhi has only 512 MiB of swap shared by 16
+    # containers, and swapping the request path costs latency we can't afford.
+    mem_limit: 384m
+    mem_reservation: 160m
+    memswap_limit: 384m
+    cpus: 1.50          # 4-core Pi 4; one uvicorn worker is GIL-bound to ~1 core
+    pids_limit: 256
 
   # IMAP poller — separate process so the web app stays responsive
   worker:
@@ -40,6 +50,14 @@ services:
       - ./data:/data
       - ./secrets:/run/secrets:ro
     command: ["python", "worker.py"]
+    # 7d profile: mem p50 96 MiB, peak 141.7 MiB, CPU peak 0.050 cores.
+    # The all-time high-water is 367 MiB (one-off historical backfill), so 512m
+    # keeps 1.4x over that instead of sizing to the quiet window alone.
+    mem_limit: 512m
+    mem_reservation: 160m
+    memswap_limit: 512m
+    cpus: 1.00
+    pids_limit: 128
     healthcheck:
       disable: true
 
@@ -54,6 +72,13 @@ services:
     volumes:
       - ./data:/data
     command: ["sh", "-c", "while true; do python scripts/backup.py; sleep 86400; done"]
+    # 7d profile: mem p50 5 MiB, peak 15 MiB. sqlite3's online backup() streams
+    # pages, so this does NOT grow with the DB file — 192m is plain headroom.
+    mem_limit: 192m
+    mem_reservation: 48m
+    memswap_limit: 192m
+    cpus: 0.50
+    pids_limit: 64
     healthcheck:
       disable: true
 
