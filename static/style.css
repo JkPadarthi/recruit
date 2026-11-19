@@ -330,6 +330,8 @@ svg { width: 22px; height: 22px; flex: none; }
 .id-list li.empty { display: grid; border-bottom: 0; }
 .id-badge { width: 40px; height: 40px; border-radius: 12px; background: var(--saffron-soft); color: var(--saffron); display: inline-flex; align-items: center; justify-content: center; flex: none; }
 .id-badge svg { width: 20px; height: 20px; }
+.privacy-note { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--ink-3); }
+.privacy-note svg { width: 14px; height: 14px; }
 .id-main { flex: 1; min-width: 0; display: grid; gap: 1px; }
 .id-kind { font-size: 13px; color: var(--ink-3); }
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
