@@ -14,6 +14,16 @@ containers: `app`, `worker`, `backup`).
 
 ---
 
+## Screenshots
+
+| Feed — every CDC mail, parsed | Your hits — only what matches your IDs | Admin — ingest health |
+|---|---|---|
+| ![Feed](docs/screenshots/feed.png) | ![Your hits](docs/screenshots/your-hits.png) | ![Admin](docs/screenshots/admin.png) |
+
+Captured from the live deployment. Account identity and the user list are redacted.
+
+---
+
 ## 1. How the mail-receiving pipeline works
 
 The engine is simple and deterministic — no magic:
