@@ -1,55 +1,103 @@
 {% extends "base.html" %}
 {% block bodyclass %}auth-page{% endblock %}
+{% block title %} · Create account{% endblock %}
 {% block content %}
-<main class="auth-wrap">
-  <div class="auth-card">
-    <div class="auth-head">
-      <div class="brand-row">
-        <img src="/static/favicon.png" alt="" class="brand-logo" width="22" height="22">
-        <span class="brand-name">{{ brand }}</span>
-      </div>
-      <h1>Create your account</h1>
-      <p class="sub">Add your register IDs and start getting pinged.</p>
+<main class="auth">
+  <div class="auth-inner">
+    <a class="brand" href="/">
+      <svg class="brand-mark" aria-hidden="true"><use href="#i-logo"/></svg>
+      <span class="brand-name">{{ brand }}</span>
+    </a>
+    <div>
+      <h1 class="auth-title">Create your account</h1>
+      <p class="auth-sub">Then add your register ID and you're set.</p>
+      <form id="reg-form" class="form" novalidate>
+        <label class="field">
+          <span class="field-label">Name</span>
+          <input class="input" id="name" placeholder="Your full name" required autocomplete="name" maxlength="80">
+        </label>
+        <label class="field">
+          <span class="field-label">Email</span>
+          <input class="input" type="email" id="email" placeholder="you@vit.ac.in" required
+                 autocomplete="email" autocapitalize="none" spellcheck="false">
+        </label>
+        <label class="field">
+          <span class="field-label">Password</span>
+          <span class="input-wrap">
+            <input class="input" type="password" id="password" minlength="6" placeholder="At least 6 characters"
+                   required autocomplete="new-password">
+            <button type="button" class="input-affix" data-toggle-password="password" aria-label="Show password">Show</button>
+          </span>
+        </label>
+        <div class="field">
+          <span class="field-label" id="division-label">Division</span>
+          <input type="hidden" id="division" value="">
+          <div class="seg" role="radiogroup" aria-labelledby="division-label" id="division-seg">
+            <button type="button" class="seg-btn" role="radio" aria-checked="false" data-value="bt">B.Tech</button>
+            <button type="button" class="seg-btn" role="radio" aria-checked="false" data-value="mba">MBA</button>
+          </div>
+          <span class="field-help">Filters your feed to drives meant for you. You can change it later.</span>
+        </div>
+        <label class="field">
+          <span class="field-label">Branch <span class="hint">optional</span></span>
+          <input class="input" id="branch" placeholder="e.g. AIML" maxlength="60">
+        </label>
+        <p id="msg" class="form-error" role="alert" hidden></p>
+        <button class="btn btn-primary btn-block" type="submit">Create account</button>
+      </form>
+      <p class="auth-alt">Already have an account? <a href="/login">Log in</a></p>
     </div>
-    <form id="reg-form" autocomplete="on">
-      <label>
-        <span>Name</span>
-        <input id="name" placeholder="Your full name" required autocomplete="name">
-      </label>
-      <label>
-        <span>Email</span>
-        <input type="email" id="email" placeholder="you@email.com" required autocomplete="email">
-      </label>
-      <label>
-        <span>Password</span>
-        <input type="password" id="password" minlength="6" placeholder="At least 6 characters"
-               required autocomplete="new-password">
-      </label>
-      <label>
-        <span>Branch <span class="hint">(optional)</span></span>
-        <input id="branch" placeholder="e.g. AIML">
-      </label>
-      <button class="btn full" type="submit">Create account</button>
-    </form>
-    <p id="msg" class="form-msg" role="alert"></p>
-    <p class="muted center">Already have an account? <a href="/login">Log in</a></p>
   </div>
 </main>
 <script>
+document.querySelectorAll('[data-toggle-password]').forEach((b) => b.addEventListener('click', () => {
+  const i = document.getElementById(b.dataset.togglePassword);
+  const show = i.type === 'password';
+  i.type = show ? 'text' : 'password';
+  b.textContent = show ? 'Hide' : 'Show';
+  b.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+}));
+document.querySelectorAll('#division-seg .seg-btn').forEach((b, _, all) => b.addEventListener('click', () => {
+  const on = b.getAttribute('aria-checked') !== 'true';   // tap again to clear
+  all.forEach((x) => { x.classList.remove('is-on'); x.setAttribute('aria-checked', 'false'); });
+  if (on) { b.classList.add('is-on'); b.setAttribute('aria-checked', 'true'); }
+  document.getElementById('division').value = on ? b.dataset.value : '';
+}));
 document.getElementById('reg-form').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const btn = e.target.querySelector('button'); btn.disabled = true;
-  const r = await fetch('/api/register', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({name: name.value, email: email.value,
-                          password: password.value, branch: branch.value}),
-  });
-  if (r.ok) { location.href = '/login'; }
-  else {
-    msg.textContent = (await r.json()).detail || 'Registration failed';
-    msg.classList.add('show'); btn.disabled = false;
+  const v = (id) => document.getElementById(id).value;
+  const msg = document.getElementById('msg');
+  const fail = (t) => { msg.textContent = t; msg.hidden = false; };
+  msg.hidden = true;
+  if (!v('name').trim()) return fail('Enter your name.');
+  if (!/^\S+@\S+\.\S+$/.test(v('email').trim())) return fail('Enter a valid email address.');
+  if (v('password').length < 6) return fail('Password needs at least 6 characters.');
+  const btn = e.target.querySelector('[type=submit]');
+  btn.disabled = true; btn.classList.add('is-busy');
+  try {
+    const r = await fetch('/api/register', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({name: v('name'), email: v('email'), password: v('password'),
+                            branch: v('branch'), division: v('division')}),
+    });
+    if (r.ok) {
+      // Sign straight in and land on the "add your ID" step.
+      const l = await fetch('/api/login', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({email: v('email'), password: v('password')}),
+      });
+      location.href = l.ok ? '/dashboard#ids' : '/login';
+      return;
+    }
+    const detail = (await r.json().catch(() => ({}))).detail || '';
+    if (r.status === 409) fail('That email already has an account — log in instead.');
+    else if (r.status === 403) fail('Use your college email address to register.');
+    else fail(detail || 'Registration failed — try again.');
+  } catch (_) {
+    fail("Couldn't reach the server. Check your connection.");
   }
+  btn.disabled = false; btn.classList.remove('is-busy');
 });
 </script>
 {% endblock %}
