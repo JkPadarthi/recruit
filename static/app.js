@@ -133,11 +133,29 @@ async function loadMe() {
   state.me = me;
   setText('dash-name', me.name ? me.name.split(' ')[0] : 'there');
   setText('stat-ids', me.ids.length);
-  const nudge = $('setup-nudge');
-  if (nudge) nudge.hidden = me.ids.length > 0;
+  updateSetupNudge(me.ids);
   renderIds();
   fillProfile();
   return me;
+}
+
+// Shortlists identify people by register number OR NEO ID, so nudge until both are tracked.
+function updateSetupNudge(ids) {
+  const nudge = $('setup-nudge');
+  if (!nudge) return;
+  const kinds = new Set(ids.map((i) => idKind(i.normalized_id)));
+  const hasReg = kinds.has('register'), hasNeo = kinds.has('neo');
+  nudge.hidden = hasReg && hasNeo;
+  if (!ids.length) {
+    setText('setup-nudge-title', 'Add your register number and NEO ID');
+    setText('setup-nudge-text', "Without them we can't tell when a shortlist is about you.");
+  } else if (!hasNeo) {
+    setText('setup-nudge-title', 'Add your NEO ID too');
+    setText('setup-nudge-text', "Some shortlists only print NEO IDs — you'd miss those.");
+  } else if (!hasReg) {
+    setText('setup-nudge-title', 'Add your register number too');
+    setText('setup-nudge-text', "Some shortlists only print register numbers — you'd miss those.");
+  }
 }
 
 function renderIds() {
@@ -146,13 +164,16 @@ function renderIds() {
   const ids = state.me.ids;
   if (!ids.length) {
     ul.innerHTML = `<li class="empty"><strong>No IDs yet</strong>
-      <p>Add your register ID above — it's how we know a shortlist is about you.</p></li>`;
+      <p>Add your register number and NEO ID above — it's how we know a shortlist is about you.</p></li>`;
     return;
   }
   ul.innerHTML = ids.map((id) => `
     <li>
       <span class="id-badge">${icon('id')}</span>
-      <span class="id-val">${escapeHtml(id.normalized_id)}</span>
+      <span class="id-main">
+        <span class="id-val">${escapeHtml(id.normalized_id)}</span>
+        <span class="id-kind">${ID_KIND_LABEL[idKind(id.normalized_id)] || 'ID'}</span>
+      </span>
       <button class="icon-btn is-danger" type="button" data-del-id="${escapeHtml(id.normalized_id)}"
               data-raw="${escapeHtml(id.register_id)}" aria-label="Remove ${escapeHtml(id.normalized_id)}">${icon('x')}</button>
     </li>`).join('');
@@ -172,7 +193,11 @@ function initIds() {
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const val = input.value.trim();
-    if (!val) { err.textContent = 'Type a register ID, like 23BAI0021.'; err.hidden = false; input.focus(); return; }
+    if (!val) { err.textContent = 'Type a register number (23BAI0021) or NEO ID (K3I6O4I8).'; err.hidden = false; input.focus(); return; }
+    if (!idKind(val)) {
+      err.textContent = `"${val}" doesn't look like a register number (23BAI0021) or a NEO ID (K3I6O4I8). Check for typos.`;
+      err.hidden = false; input.focus(); return;
+    }
     const btn = form.querySelector('[type=submit]');
     btn.disabled = true; btn.classList.add('is-busy');
     try {
@@ -182,7 +207,7 @@ function initIds() {
                     : `You're already tracking ${r.normalized_id}.`);
     } catch (ex) {
       err.textContent = /does not look like/.test(ex.message)
-        ? `"${val}" doesn't look like a register ID. Check for typos — e.g. 23BAI0021.`
+        ? `"${val}" doesn't look like a register number (23BAI0021) or a NEO ID (K3I6O4I8). Check for typos.`
         : `Couldn't add that ID: ${ex.message}`;
       err.hidden = false;
     } finally {
@@ -365,7 +390,7 @@ function renderHits() {
   if (!state.hits.length) {
     const noIds = state.me && !state.me.ids.length;
     box.innerHTML = `<div class="empty"><strong>No hits yet</strong>
-      <p>${noIds ? "Add a register ID first — then you'll be pinged the moment it's on a shortlist."
+      <p>${noIds ? "Add your register number and NEO ID first — then you'll be pinged the moment either is on a shortlist."
                  : "You'll get a notification the moment one of your IDs is on a shortlist."}</p>
       ${noIds ? `<a class="btn btn-primary btn-sm" href="#ids" data-go="ids">${icon('plus')}Add an ID</a>` : ''}</div>`;
     return;

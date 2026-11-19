@@ -10,7 +10,7 @@
     </a>
     <div>
       <h1 class="auth-title">Create your account</h1>
-      <p class="auth-sub">Then add your register ID and you're set.</p>
+      <p class="auth-sub">Takes a minute. Add your IDs and you're set.</p>
       <form id="reg-form" class="form" novalidate>
         <label class="field">
           <span class="field-label">Name</span>
@@ -42,6 +42,22 @@
           <span class="field-label">Branch <span class="hint">optional</span></span>
           <input class="input" id="branch" placeholder="e.g. AIML" maxlength="60">
         </label>
+        <fieldset class="field id-fields">
+          <legend class="field-label">IDs to watch <span class="hint">add both if you can</span></legend>
+          <div class="grid-2">
+            <label class="field">
+              <span class="field-help">Register number</span>
+              <input class="input mono id-input" id="reg-no" placeholder="23BAI0021" autocomplete="off"
+                     autocapitalize="characters" spellcheck="false" maxlength="20">
+            </label>
+            <label class="field">
+              <span class="field-help">NEO ID</span>
+              <input class="input mono id-input" id="neo-id" placeholder="K3I6O4I8" autocomplete="off"
+                     autocapitalize="characters" spellcheck="false" maxlength="20">
+            </label>
+          </div>
+          <span class="field-help">Some shortlists use register numbers, others NEO IDs — with both, we catch every list.</span>
+        </fieldset>
         <p id="msg" class="form-error" role="alert" hidden></p>
         <button class="btn btn-primary btn-block" type="submit">Create account</button>
       </form>
@@ -49,6 +65,7 @@
     </div>
   </div>
 </main>
+<script src="/static/ids.js?v=1"></script>
 <script>
 document.querySelectorAll('[data-toggle-password]').forEach((b) => b.addEventListener('click', () => {
   const i = document.getElementById(b.dataset.togglePassword);
@@ -72,6 +89,15 @@ document.getElementById('reg-form').addEventListener('submit', async (e) => {
   if (!v('name').trim()) return fail('Enter your name.');
   if (!/^\S+@\S+\.\S+$/.test(v('email').trim())) return fail('Enter a valid email address.');
   if (v('password').length < 6) return fail('Password needs at least 6 characters.');
+  // Check ID formats BEFORE creating the account, so a typo can't half-finish signup.
+  const ids = [['reg-no', 'register'], ['neo-id', 'neo']].map(([id, kind]) => [v(id).trim(), kind]).filter(([x]) => x);
+  for (const [raw, kind] of ids) {
+    if (!idKind(raw)) {   // either kind is fine in either box — both are tracked the same way
+      return fail(kind === 'register'
+        ? `"${raw}" doesn't look like a register number (e.g. 23BAI0021).`
+        : `"${raw}" doesn't look like a NEO ID (8-ish letters and digits, e.g. K3I6O4I8).`);
+    }
+  }
   const btn = e.target.querySelector('[type=submit]');
   btn.disabled = true; btn.classList.add('is-busy');
   try {
@@ -87,7 +113,17 @@ document.getElementById('reg-form').addEventListener('submit', async (e) => {
         method: 'POST', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({email: v('email'), password: v('password')}),
       });
-      location.href = l.ok ? '/dashboard#ids' : '/login';
+      if (!l.ok) { location.href = '/login'; return; }
+      // Track the IDs they gave us. Best-effort: anything that fails can be re-added on the IDs tab.
+      let added = 0;
+      for (const [raw] of ids) {
+        const a = await fetch('/api/me/ids', {
+          method: 'POST', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({register_id: raw}),
+        }).catch(() => null);
+        if (a && a.ok) added++;
+      }
+      location.href = added && added === ids.length ? '/dashboard#feed' : '/dashboard#ids';
       return;
     }
     const detail = (await r.json().catch(() => ({}))).detail || '';
