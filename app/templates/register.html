@@ -66,8 +66,11 @@
     </div>
   </div>
 </main>
-<script src="/static/ids.js?v=1"></script>
+<script src="/static/ids.js?v=2"></script>
 <script>
+// Fresh, format-valid example IDs on every load (static ones above are the no-JS fallback).
+document.getElementById('reg-no').placeholder = sampleRegisterNo();
+document.getElementById('neo-id').placeholder = sampleNeoId();
 document.querySelectorAll('[data-toggle-password]').forEach((b) => b.addEventListener('click', () => {
   const i = document.getElementById(b.dataset.togglePassword);
   const show = i.type === 'password';
@@ -95,8 +98,8 @@ document.getElementById('reg-form').addEventListener('submit', async (e) => {
   for (const [raw, kind] of ids) {
     if (!idKind(raw)) {   // either kind is fine in either box — both are tracked the same way
       return fail(kind === 'register'
-        ? `"${raw}" doesn't look like a register number (e.g. 23BAI0021).`
-        : `"${raw}" doesn't look like a NEO ID (8-ish letters and digits, e.g. K3I6O4I8).`);
+        ? `"${raw}" doesn't look like a register number (e.g. ${document.getElementById('reg-no').placeholder}).`
+        : `"${raw}" doesn't look like a NEO ID (letters and digits mixed, e.g. ${document.getElementById('neo-id').placeholder}).`);
     }
   }
   const btn = e.target.querySelector('[type=submit]');

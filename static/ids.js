@@ -23,3 +23,24 @@ function idKind(raw) {
 }
 
 const ID_KIND_LABEL = { register: 'Register number', neo: 'NEO ID' };
+
+// ---- random example IDs (for placeholders) ----------------------------------
+// Always valid for idKind(), so the example itself never contradicts the rules.
+const pick = (s) => s[Math.floor(Math.random() * s.length)];
+const ID_LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ';   // no I/O — they read like 1/0
+const ID_DIGITS = '23456789';                    // no 0/1 for the same reason
+
+// e.g. 24BCE1187: 2-digit year, branch code, 4 digits.
+function sampleRegisterNo() {
+  const year = String(20 + Math.floor(Math.random() * 6));
+  const branch = pick(['BAI', 'BCE', 'BIT', 'BEC', 'BCI', 'BDS', 'BME', 'BEE', 'BKT']);
+  const num = String(1 + Math.floor(Math.random() * 1999)).padStart(4, '0');
+  return year + branch + num;
+}
+
+// e.g. K3P6R4T8: alternating letter/digit, 8 chars.
+function sampleNeoId() {
+  let s = '';
+  for (let i = 0; i < 8; i++) s += i % 2 ? pick(ID_DIGITS) : pick(ID_LETTERS);
+  return idKind(s) === 'neo' ? s : 'K3P6R4T8';
+}
