@@ -51,6 +51,14 @@ class Settings:
     vapid_private_key: str = field(default_factory=lambda: _env("VAPID_PRIVATE_KEY", ""))
     vapid_subject: str = field(default_factory=lambda: _env("VAPID_SUBJECT", "mailto:admin@example.com"))
 
+    # Outbound email (password resets). Empty host = email reset disabled, and the
+    # admin-issued link in the dashboard stays as the fallback.
+    smtp_host: str = field(default_factory=lambda: _env("SMTP_HOST", ""))
+    smtp_port: int = int(_env("SMTP_PORT", "587"))
+    smtp_user: str = field(default_factory=lambda: _env("SMTP_USER", ""))
+    smtp_password: str = field(default_factory=lambda: _env("SMTP_PASSWORD", ""))
+    smtp_from: str = field(default_factory=lambda: _env("SMTP_FROM", ""))   # "Recruit <no-reply@…>"
+
     # Native push (FCM HTTP v1). Path to the Firebase service-account JSON.
     # Empty/missing file => native push stays off; web push is unaffected.
     fcm_service_account: str = field(default_factory=lambda: _env("FCM_SERVICE_ACCOUNT", ""))

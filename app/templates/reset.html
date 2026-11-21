@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block bodyclass %}auth-page{% endblock %}
+{% block title %} · New password{% endblock %}
+{% block content %}
+<main class="auth">
+  <div class="auth-inner">
+    <a class="brand" href="/">
+      <svg class="brand-mark" aria-hidden="true"><use href="#i-logo"/></svg>
+      <span class="brand-name">{{ brand }}</span>
+    </a>
+
+    {% if ok %}
+    <div>
+      <h1 class="auth-title">Choose a new password</h1>
+      <p class="auth-sub">
+        This link works once and expires in an hour. Setting a password also signs you
+        out on every other device.
+      </p>
+      <form id="reset-form" class="form" novalidate>
+        <label class="field">
+          <span class="field-label">New password</span>
+          <input class="input" type="password" id="pw1" required minlength="8"
+                 autocomplete="new-password">
+          <span class="field-help">At least 8 characters.</span>
+        </label>
+        <label class="field">
+          <span class="field-label">Again</span>
+          <input class="input" type="password" id="pw2" required minlength="8"
+                 autocomplete="new-password">
+        </label>
+        <button class="btn btn-primary btn-block" type="submit" id="reset-btn">
+          Save password
+        </button>
+        <p class="form-note" id="reset-note" role="status"></p>
+      </form>
+    </div>
+    {% else %}
+    <div>
+      <h1 class="auth-title">That link won't work</h1>
+      <p class="auth-sub">{{ reason }}</p>
+      <a class="btn btn-primary btn-block" href="/forgot">Ask for a new link</a>
+      <p class="auth-alt"><a href="/login">Back to log in</a></p>
+    </div>
+    {% endif %}
+  </div>
+</main>
+{% if ok %}
+<script>
+const TOKEN = {{ token | tojson }};
+document.getElementById('reset-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById('reset-btn');
+  const note = document.getElementById('reset-note');
+  const a = document.getElementById('pw1').value;
+  const b = document.getElementById('pw2').value;
+  if (a.length < 8) {
+    note.textContent = 'Use at least 8 characters.';
+    note.className = 'form-note is-bad';
+    return;
+  }
+  if (a !== b) {
+    note.textContent = 'The two passwords do not match.';
+    note.className = 'form-note is-bad';
+    return;
+  }
+  btn.disabled = true; btn.classList.add('is-busy');
+  try {
+    const r = await fetch('/api/password/reset', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: TOKEN, password: a }),
+    });
+    if (r.ok) {
+      note.textContent = 'Password saved. Taking you to the login…';
+      note.className = 'form-note is-good';
+      setTimeout(() => { location.href = '/login?reset=1'; }, 900);
+      return;
+    }
+    const d = await r.json().catch(() => ({}));
+    note.textContent = d.detail || 'That link is no longer valid.';
+    note.className = 'form-note is-bad';
+  } catch (_) {
+    note.textContent = "Couldn't reach the server. Try again.";
+    note.className = 'form-note is-bad';
+  }
+  btn.disabled = false; btn.classList.remove('is-busy');
+});
+</script>
+{% endif %}
+{% endblock %}

@@ -17,7 +17,8 @@ from .db import DB, Base
 from .extract import classify, extract_ids
 from .ingest import process_message, poll_once
 from .models import AppState, Entry, Hit, Ingested, PushSubscription, User, UserId
-from .security import hash_password, make_session_token, verify_password, verify_session_token
+from .security import (decode_session, hash_password, make_session_token,
+                       verify_password, verify_session_token)
 from .util import normalize_id
 
 log = logging.getLogger("recruit")
@@ -44,15 +45,20 @@ from .web import router as web_router  # noqa: E402
 app.include_router(web_router)
 from .apk import router as apk_router  # noqa: E402
 app.include_router(apk_router)
+from .reset import router as reset_router  # noqa: E402
+app.include_router(reset_router)
 
 
 def _current_user(request: Request, s: Session) -> User:
-    uid = verify_session_token(request.cookies.get(settings.session_cookie_name, ""))
-    if uid is None:
+    data = decode_session(request.cookies.get(settings.session_cookie_name, ""))
+    if not data:
         raise HTTPException(401, "not authenticated")
-    u = s.get(User, uid)
+    u = s.get(User, int(data.get("uid", -1)))
     if u is None:
         raise HTTPException(401, "user not found")
+    # A password reset bumps the epoch, which invalidates every older cookie.
+    if int(data.get("ep", 0)) != int(u.session_epoch or 0):
+        raise HTTPException(401, "session expired — sign in again")
     return u
 
 
@@ -137,7 +143,8 @@ def login(body: LoginIn, response: Response):
         u = s.execute(select(User).where(User.email == body.email.strip().lower())).scalar_one_or_none()
         if not u or not verify_password(body.password, u.password_hash):
             raise HTTPException(401, "invalid credentials")
-        response.set_cookie(settings.session_cookie_name, make_session_token(u.id),
+        response.set_cookie(settings.session_cookie_name,
+                            make_session_token(u.id, u.session_epoch or 0),
                             httponly=True, samesite="lax",
                             secure=settings.session_secure, max_age=settings.session_max_age_sec)
         return {"id": u.id, "email": u.email, "admin": u.is_admin}

@@ -20,6 +20,8 @@ class User(Base):
     division: Mapped[str] = mapped_column(String(20), default="")  # "bt" (B.Tech) / "mba" / ""
     college: Mapped[str] = mapped_column(String(40), default="VIT")
     is_admin: Mapped[bool] = mapped_column(default=False)
+    # Bumped on password reset; every cookie issued before it stops verifying.
+    session_epoch: Mapped[int] = mapped_column(default=0)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     ids: Mapped[list["UserId"]] = relationship(back_populates="user", cascade="all, delete-orphan")
@@ -131,3 +133,25 @@ class PushSubscription(Base):
     created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     user: Mapped[User] = relationship()
+
+class PasswordReset(Base):
+    """A reset request, and later the link handed to that user.
+
+    Two states in one row, deliberately: `token_hash` empty means "the user asked,
+    nobody has issued a link yet" — the admin panel lists exactly those. Issuing a
+    link fills the hash and the expiry, so there is a single audit trail instead of a
+    request table plus a token table that can disagree.
+
+    Only the HASH of the token is stored. A leaked database must not be a stack of
+    working password links.
+    """
+    __tablename__ = "password_resets"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), default="", index=True)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    expires_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    used_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    user: Mapped["User"] = relationship()

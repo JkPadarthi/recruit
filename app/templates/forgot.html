@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block bodyclass %}auth-page{% endblock %}
+{% block title %} · Forgot password{% endblock %}
+{% block content %}
+<main class="auth">
+  <div class="auth-inner">
+    <a class="brand" href="/">
+      <svg class="brand-mark" aria-hidden="true"><use href="#i-logo"/></svg>
+      <span class="brand-name">{{ brand }}</span>
+    </a>
+    <div>
+      <h1 class="auth-title">Forgot your password?</h1>
+      <p class="auth-sub">
+        Enter the email you signed up with and we'll send a link to choose a new one.
+      </p>
+
+      {% if not email_ready %}
+      <div class="callout callout-quiet">
+        <svg class="callout-ico" aria-hidden="true"><use href="#i-mail"/></svg>
+        <div class="callout-text">
+          <strong>Email is not switched on yet</strong>
+          <span>Ask the admin for a reset link — they can create one for you from the
+                dashboard in a few seconds.</span>
+        </div>
+      </div>
+      {% endif %}
+
+      <form id="forgot-form" class="form" novalidate>
+        <label class="field">
+          <span class="field-label">Email</span>
+          <input class="input" type="email" id="forgot-email" required
+                 placeholder="you@vitstudent.ac.in" autocomplete="email"
+                 autocapitalize="none" spellcheck="false">
+        </label>
+        <button class="btn btn-primary btn-block" type="submit" id="forgot-btn">
+          Send reset link
+        </button>
+        <p class="form-note" id="forgot-note" role="status"></p>
+      </form>
+
+      <p class="auth-alt"><a href="/login">Back to log in</a></p>
+    </div>
+  </div>
+</main>
+<script>
+document.getElementById('forgot-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById('forgot-btn');
+  const note = document.getElementById('forgot-note');
+  const email = document.getElementById('forgot-email').value.trim();
+  btn.disabled = true; btn.classList.add('is-busy');
+  try {
+    const r = await fetch('/api/password/forgot', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    const d = await r.json().catch(() => ({}));
+    note.textContent = d.message || "If that address has an account, a link is on its way.";
+    note.className = 'form-note is-good';
+  } catch (_) {
+    note.textContent = "Couldn't reach the server. Try again.";
+    note.className = 'form-note is-bad';
+  }
+  btn.disabled = false; btn.classList.remove('is-busy');
+});
+</script>
+{% endblock %}

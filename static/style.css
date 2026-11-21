@@ -593,3 +593,17 @@ svg { width: 22px; height: 22px; flex: none; }
   .app-facts { grid-template-columns: 1fr; }
   .app-cta .btn { width: 100%; justify-content: center; }
 }
+
+/* A freshly minted reset link: the raw token exists only in this response, so it is
+   shown with a copy button rather than hidden behind a toast. */
+.reset-link-card {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  margin-bottom: 10px;
+  border-radius: var(--r-s);
+  background: var(--surface);
+  border: 1px solid rgba(244, 179, 61, .28);
+}
+.reset-link-card .input { font-size: 13px; }
+.reset-link-card .btn { justify-self: start; }

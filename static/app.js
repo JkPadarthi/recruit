@@ -609,6 +609,7 @@ async function loadAdminStats() {
   setText('admin-stat-ingested', data.ingested);
   setText('admin-stat-hits', data.hits);
   setText('admin-stat-users', data.users.length);
+  await loadResetRequests();
   const box = $('admin-users');
   if (!box) return;
   state.adminUsers = data.users;
@@ -625,8 +626,62 @@ async function loadAdminStats() {
         </div>
         <button class="btn btn-secondary btn-sm" type="button" data-test-push="${u.id}"
                 ${u.devices ? '' : 'disabled'} aria-label="Send test notification to ${escapeHtml(u.name || u.email)}">${icon('bell')}Test</button>
+        <button class="btn btn-ghost btn-sm" type="button" data-reset-link="${u.id}"
+                aria-label="Create a password reset link for ${escapeHtml(u.name || u.email)}">Reset</button>
       </div>`;
   }).join('');
+}
+
+async function loadResetRequests() {
+  const box = $('admin-resets');
+  if (!box) return;
+  let data = { requests: [] };
+  try {
+    data = await getJSON('/api/admin/password-requests');
+  } catch (_) {
+    box.innerHTML = '';
+    return;
+  }
+  if (!data.requests.length) {
+    box.innerHTML = '<p class="form-note">No open requests.</p>';
+    return;
+  }
+  box.innerHTML = data.requests.map((r) => `
+    <div class="admin-user">
+      <div class="admin-user-info">
+        <div class="admin-user-name">${escapeHtml(r.email)}</div>
+        <div class="admin-user-meta">asked ${r.age_min} min ago</div>
+      </div>
+      <button class="btn btn-primary btn-sm" type="button" data-reset-link="${r.user_id}">Create link</button>
+    </div>`).join('');
+}
+
+/**
+ * Show a freshly minted reset link. It is displayed rather than sent because the
+ * admin forwards it (mail may be off) — and the raw token exists only in this
+ * response, so if it is lost the link has to be reissued.
+ */
+function showResetLink(email, url, minutes) {
+  const box = $('admin-resets');
+  if (!box) return;
+  const card = document.createElement('div');
+  card.className = 'reset-link-card';
+  card.innerHTML = `
+    <div class="admin-user-name">${escapeHtml(email)}</div>
+    <div class="admin-user-meta">link valid for ${minutes} minutes, one use</div>
+    <input class="input" readonly value="${escapeHtml(url)}" aria-label="Reset link">
+    <button class="btn btn-primary btn-sm" type="button">Copy</button>`;
+  card.querySelector('button').addEventListener('click', async () => {
+    const input = card.querySelector('input');
+    try {
+      await navigator.clipboard.writeText(url);
+      toast('Link copied — send it to them.');
+    } catch (_) {
+      input.select();
+      toast('Select and copy the link.');
+    }
+  });
+  box.prepend(card);
 }
 
 function initAdmin() {
@@ -644,6 +699,21 @@ function initAdmin() {
       toast(`Sent to ${r.sent} of ${r.live_devices} device${r.live_devices === 1 ? '' : 's'} for ${who}.`);
     } catch (err) {
       toast('Test push failed: ' + err.message, { error: true });
+    } finally {
+      btn.disabled = false; btn.classList.remove('is-busy');
+    }
+  });
+  document.addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-reset-link]');
+    if (!btn) return;
+    const uid = Number(btn.dataset.resetLink);
+    btn.disabled = true; btn.classList.add('is-busy');
+    try {
+      const r = await getJSON(`/api/admin/users/${uid}/reset-link`, { method: 'POST' });
+      showResetLink(r.email, r.url, r.expires_in_min);
+      loadResetRequests();
+    } catch (err) {
+      toast('Could not create the link: ' + err.message, { error: true });
     } finally {
       btn.disabled = false; btn.classList.remove('is-busy');
     }

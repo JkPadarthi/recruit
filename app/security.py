@@ -25,15 +25,23 @@ def _sign(payload: bytes) -> bytes:
     return hmac.new(settings.secret_key.encode(), payload, hashlib.sha256).digest()
 
 
-def make_session_token(user_id: int) -> str:
-    body = json.dumps({"uid": user_id, "exp": int(time.time()) + settings.session_max_age_sec},
-                      separators=(",", ":"))
+def make_session_token(user_id: int, epoch: int = 0) -> str:
+    """`epoch` is the user's session_epoch at issue time.
+
+    Bumping it (a password reset does) makes every previously issued cookie fail
+    verification — "log out everywhere" without keeping a session table.
+    """
+    body = json.dumps(
+        {"uid": user_id, "ep": int(epoch), "exp": int(time.time()) + settings.session_max_age_sec},
+        separators=(",", ":"),
+    )
     sig = _sign(body.encode()).hex()
     return f"{body.encode().hex()}.{sig}"
 
 
-def verify_session_token(token: str) -> int | None:
-    """Return user_id if token valid + unexpired, else None."""
+def decode_session(token: str) -> dict | None:
+    """The signed payload, or None. Signature and expiry only — the caller checks
+    the epoch against the database, because that is what a reset changes."""
     if not token:
         return None
     try:
@@ -44,6 +52,26 @@ def verify_session_token(token: str) -> int | None:
         data = json.loads(body)
         if data.get("exp", 0) < time.time():
             return None
-        return int(data.get("uid", -1))
+        return data
     except Exception:
         return None
+
+
+def verify_session_token(token: str) -> int | None:
+    """Return user_id if the token is signed and unexpired, else None.
+
+    Does NOT know about session_epoch — use decode_session + a database check where
+    a password may have been reset.
+    """
+    data = decode_session(token)
+    return int(data.get("uid", -1)) if data else None
+
+def new_reset_token() -> str:
+    """A one-time URL token. Long and random, because it IS the credential."""
+    import secrets
+    return secrets.token_urlsafe(32)
+
+
+def hash_reset_token(raw: str) -> str:
+    """Store only this. A stolen database must not yield working reset links."""
+    return hashlib.sha256(raw.encode()).hexdigest()
