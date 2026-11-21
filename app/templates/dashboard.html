@@ -1,78 +1,119 @@
 {% extends "base.html" %}
-{% block bodyclass %}dash-page{% endblock %}
+{% block bodyclass %}app-page{% endblock %}
 {% block content %}
+{% set page = 'dashboard' %}
 {% include "_sidebar.html" %}
-<main class="dash-main">
-  <header class="dash-head">
-    <div>
-      <h1>Intro</h1>
-      <p class="dash-sub">Good to see you, <span id="dash-name"></span>. Here's what's arrived.</p>
-    </div>
-    <div id="live-indicator" class="live">
-      <span class="live-dot"></span><span>live</span>
-    </div>
-  </header>
+<main class="page">
 
-  <section class="stat-row">
-    <div class="stat"><span class="stat-num" id="stat-hits">–</span><span class="stat-lab">Your hits</span></div>
-    <div class="stat"><span class="stat-num" id="stat-ids">–</span><span class="stat-lab">Register IDs</span></div>
-    <div class="stat"><span class="stat-num" id="stat-unread">–</span><span class="stat-lab">Unread</span></div>
+  <!-- ═════════ FEED ═════════ -->
+  <section id="feed-sec" class="tab" aria-labelledby="feed-title">
+    <p class="greet">Hi <span id="dash-name">there</span>,</p>
+    <a class="hero" href="#hits" data-go="hits">
+      <span class="hero-num"><span id="stat-unread" class="big-num">–</span></span>
+      <span class="hero-caption" id="hero-caption">new shortlists for you</span>
+    </a>
+    <dl class="stat-row">
+      <div class="stat"><dt class="stat-label">Your hits</dt><dd class="stat-val" id="stat-hits">–</dd></div>
+      <div class="stat"><dt class="stat-label">IDs tracked</dt><dd class="stat-val" id="stat-ids">–</dd></div>
+      <div class="stat"><dt class="stat-label">In your feed</dt><dd class="stat-val" id="stat-mails">–</dd></div>
+    </dl>
+
+    <!-- Turn-on-notifications nudge: shown by app.js only when this device isn't subscribed. -->
+    <section id="push-cta" class="callout" hidden>
+      <svg class="callout-ico" aria-hidden="true"><use href="#i-bell"/></svg>
+      <div class="callout-text">
+        <strong>Turn on notifications</strong>
+        <span>That's the whole point — we ping this device the moment your ID is on a list.</span>
+      </div>
+      <button class="btn btn-primary btn-sm push-btn" type="button">Turn on</button>
+    </section>
+
+    <div id="setup-nudge" class="callout callout-quiet" hidden>
+      <svg class="callout-ico" aria-hidden="true"><use href="#i-id"/></svg>
+      <div class="callout-text">
+        <strong id="setup-nudge-title">Add your register number and NEO ID</strong>
+        <span id="setup-nudge-text">Without them we can't tell when a shortlist is about you.</span>
+      </div>
+      <a class="btn btn-secondary btn-sm" href="#ids" data-go="ids">Add ID</a>
+    </div>
+
+    <div class="section-head">
+      <h1 class="section-title" id="feed-title">Placement feed</h1>
+      <span class="section-note">Every CDC mail for your division</span>
+    </div>
+    <div class="chips" role="tablist" aria-label="Filter feed" id="feed-filter">
+      <button class="chip is-on" role="tab" aria-selected="true" data-kind="all">All <span class="chip-count" data-count="all"></span></button>
+      <button class="chip" role="tab" aria-selected="false" data-kind="shortlist">Shortlists <span class="chip-count" data-count="shortlist"></span></button>
+      <button class="chip" role="tab" aria-selected="false" data-kind="announcement">Announcements <span class="chip-count" data-count="announcement"></span></button>
+    </div>
+    <div id="feed" class="list" aria-busy="true">
+      <div class="skel skel-row"></div><div class="skel skel-row"></div><div class="skel skel-row"></div>
+    </div>
   </section>
 
-  <div class="dash-grid">
-    <section id="feed-sec" class="panel">
-      <div class="panel-head">
-        <h2>Placement feed</h2>
-        <span class="panel-tag">every CDC mail</span>
+  <!-- ═════════ HITS ═════════ -->
+  <section id="hits-sec" class="tab" aria-labelledby="hits-title" hidden>
+    <div class="tab-head">
+      <div>
+        <h1 class="tab-title" id="hits-title">Your hits</h1>
+        <p class="tab-sub">Shortlists that contain one of your register IDs.</p>
       </div>
-      <div id="feed" class="feed"></div>
-    </section>
+      <button id="mark-all-read" class="btn btn-secondary btn-sm" type="button" hidden>
+        <svg aria-hidden="true"><use href="#i-check"/></svg>Mark all read
+      </button>
+    </div>
+    <div id="hits" class="list" aria-busy="true">
+      <div class="skel skel-row"></div><div class="skel skel-row"></div>
+    </div>
+  </section>
 
-    <section id="hits-sec" class="panel">
-      <div class="panel-head">
-        <h2>Your hits</h2>
-        <span class="panel-tag">shortlists with your ID</span>
+  <!-- ═════════ IDS ═════════ -->
+  <section id="ids-sec" class="tab" aria-labelledby="ids-title" hidden>
+    <div class="tab-head">
+      <div>
+        <h1 class="tab-title" id="ids-title">Your IDs</h1>
+        <p class="tab-sub">Some shortlists print register numbers, others NEO IDs. Add both and we'll catch every list.</p>
       </div>
-      <div id="hits" class="feed"></div>
-    </section>
+    </div>
+    <form id="id-form" class="id-add" novalidate>
+      <label class="sr-only" for="new-id">Register number or NEO ID</label>
+      <input id="new-id" class="input mono" placeholder="23BAI0021 or K3I6O4I8" autocomplete="off"
+             autocapitalize="characters" spellcheck="false" maxlength="20" required>
+      <button class="btn btn-primary" type="submit"><svg aria-hidden="true"><use href="#i-plus"/></svg>Add</button>
+    </form>
+    <p id="id-error" class="form-error" role="alert" hidden></p>
+    <p class="privacy-note"><svg aria-hidden="true"><use href="#i-lock"/></svg>Your NEO ID is only used to match you to shortlists.</p>
+    <ul id="id-list" class="id-list"></ul>
+  </section>
 
-    <section id="ids-sec" class="panel panel-ids">
-      <div class="panel-head">
-        <h2>Register IDs</h2>
-        <span class="panel-tag">what triggers a ping</span>
+  {% if is_admin %}
+  <!-- ═════════ ADMIN ═════════ -->
+  <section id="admin-sec" class="tab" aria-labelledby="admin-title" hidden>
+    <div class="tab-head">
+      <div>
+        <h1 class="tab-title" id="admin-title">Admin</h1>
+        <p class="tab-sub">Ingest health. Only admins see this.</p>
       </div>
-      <form id="id-form" class="id-add">
-        <input id="new-id" placeholder="e.g. 23BAI0021" required>
-        <button class="btn" type="submit" title="Add ID">Add</button>
-      </form>
-      <ul id="id-list" class="id-list"></ul>
-    </section>
-
-    {% if is_admin %}
-    <section id="admin-sec" class="panel panel-admin">
-      <div class="panel-head">
-        <h2>Admin</h2>
-        <span class="panel-tag">only you can see this</span>
-      </div>
-      <div class="admin-actions">
-        <button id="admin-poll" class="btn" type="button" title="Poll CDC inbox now">Poll now</button>
-        <span id="admin-poll-result" class="admin-note"></span>
-      </div>
-      <div class="admin-stats">
-        <div class="stat"><span class="stat-num" id="admin-stat-ingested">–</span><span class="stat-lab">Ingested</span></div>
-        <div class="stat"><span class="stat-num" id="admin-stat-hits">–</span><span class="stat-lab">Hits</span></div>
-        <div class="stat"><span class="stat-num" id="admin-stat-users">–</span><span class="stat-lab">Users</span></div>
-      </div>
-      <h3 class="admin-sub">Send a test notification to…</h3>
-      <div id="admin-users" class="admin-users"></div>
-    </section>
-    {% endif %}
-  </div>
+      <button id="admin-poll" class="btn btn-primary btn-sm" type="button">
+        <svg aria-hidden="true"><use href="#i-refresh"/></svg>Poll now
+      </button>
+    </div>
+    <p id="admin-poll-result" class="form-note" role="status"></p>
+    <dl class="stat-row">
+      <div class="stat"><dt class="stat-label">Ingested</dt><dd class="stat-val" id="admin-stat-ingested">–</dd></div>
+      <div class="stat"><dt class="stat-label">Hits</dt><dd class="stat-val" id="admin-stat-hits">–</dd></div>
+      <div class="stat"><dt class="stat-label">Users</dt><dd class="stat-val" id="admin-stat-users">–</dd></div>
+    </dl>
+    <h2 class="section-title">Send a test notification</h2>
+    <div id="admin-users" class="list"></div>
+  </section>
+  {% endif %}
 </main>
 
-<script src="/static/app.js?v=15" defer></script>
 <script>
   window.RECRUIT_VAPID_KEY = "{{ vapid_public_key }}";
   window.RECRUIT_POLL_MS = 15000;
 </script>
+<script src="/static/ids.js?v=2" defer></script>
+<script src="/static/app.js?v=21" defer></script>
 {% endblock %}

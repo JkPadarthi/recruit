@@ -310,3 +310,42 @@ async def test_profile_page_requires_auth_and_saves(client, register):
     me = await client.get("/api/me")
     assert me.json()["branch"] == "AIML"
     assert me.json()["division"] == "bt"
+
+async def test_profile_save_without_name_keeps_name(client, register):
+    """Regression: PUT /api/me/profile used to blank `name` when it wasn't sent."""
+    await register(name="Asha Rao")
+    up = await client.put("/api/me/profile", json={"division": "mba"})
+    assert up.status_code == 200
+    me = (await client.get("/api/me")).json()
+    assert me["name"] == "Asha Rao"
+    assert me["branch"] == "AIML"          # untouched too
+    assert me["division"] == "mba"
+    # fields that ARE sent still change, including to empty
+    await client.put("/api/me/profile", json={"name": "Asha R", "branch": ""})
+    me = (await client.get("/api/me")).json()
+    assert (me["name"], me["branch"], me["division"]) == ("Asha R", "", "mba")
+
+
+async def test_public_pages_render(client):
+    for path, marker in [("/", "shortlisted"), ("/login", 'id="login-form"'),
+                         ("/register", 'id="reg-form"')]:
+        r = await client.get(path)
+        assert r.status_code == 200, path
+        assert marker in r.text, path
+        assert "/static/style.css" in r.text
+
+
+async def test_app_pages_render_with_tabs(client, register):
+    await register()
+    dash = await client.get("/dashboard")
+    assert dash.status_code == 200
+    for el in ('id="feed-sec"', 'id="hits-sec"', 'id="ids-sec"', 'id="id-form"',
+               'class="tabbar', "/static/app.js"):
+        assert el in dash.text, el
+    assert 'id="admin-sec"' not in dash.text        # non-admin never sees admin
+    prof = await client.get("/profile")
+    assert prof.status_code == 200
+    for el in ('id="profile-form"', 'id="pf-name"', 'id="push-status"', 'action="/api/logout"'):
+        assert el in prof.text, el
+    m = (await client.get("/manifest.json")).json()
+    assert m["theme_color"] == "#0E1715"

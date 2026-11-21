@@ -1,45 +1,66 @@
 {% extends "base.html" %}
 {% block bodyclass %}auth-page{% endblock %}
+{% block title %} · Log in{% endblock %}
 {% block content %}
-<main class="auth-wrap">
-  <div class="auth-card">
-    <div class="auth-head">
-      <div class="brand-row">
-        <img src="/static/favicon.png" alt="" class="brand-logo" width="22" height="22">
-        <span class="brand-name">{{ brand }}</span>
-      </div>
-      <h1>Welcome back</h1>
-      <p class="sub">Log in to check your shortlists.</p>
+<main class="auth">
+  <div class="auth-inner">
+    <a class="brand" href="/">
+      <svg class="brand-mark" aria-hidden="true"><use href="#i-logo"/></svg>
+      <span class="brand-name">{{ brand }}</span>
+    </a>
+    <div>
+      <h1 class="auth-title">Welcome back</h1>
+      <p class="auth-sub">Log in to check your shortlists.</p>
+      <form id="login-form" class="form" novalidate>
+        <label class="field">
+          <span class="field-label">Email</span>
+          <input class="input" type="email" id="email" placeholder="you@vitstudent.ac.in" required
+                 autocomplete="email" autocapitalize="none" spellcheck="false">
+        </label>
+        <label class="field">
+          <span class="field-label">Password</span>
+          <span class="input-wrap">
+            <input class="input" type="password" id="password" required autocomplete="current-password">
+            <button type="button" class="input-affix" data-toggle-password="password" aria-label="Show password">Show</button>
+          </span>
+        </label>
+        <p id="msg" class="form-error" role="alert" hidden></p>
+        <button class="btn btn-primary btn-block" type="submit">Log in</button>
+      </form>
+      <p class="auth-alt">New here? <a href="/register">Create an account</a></p>
     </div>
-    <form id="login-form" autocomplete="on">
-      <label>
-        <span>Email</span>
-        <input type="email" id="email" placeholder="you@vit.ac.in" required autocomplete="email">
-      </label>
-      <label>
-        <span>Password</span>
-        <input type="password" id="password" placeholder="••••••••" required autocomplete="current-password">
-      </label>
-      <button class="btn full" type="submit">Log in</button>
-    </form>
-    <p id="msg" class="form-msg" role="alert"></p>
-    <p class="muted center">New here? <a href="/register">Create an account</a></p>
   </div>
 </main>
 <script>
+document.querySelectorAll('[data-toggle-password]').forEach((b) => b.addEventListener('click', () => {
+  const i = document.getElementById(b.dataset.togglePassword);
+  const show = i.type === 'password';
+  i.type = show ? 'text' : 'password';
+  b.textContent = show ? 'Hide' : 'Show';
+  b.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+}));
 document.getElementById('login-form').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const btn = e.target.querySelector('button'); btn.disabled = true;
-  const r = await fetch('/api/login', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({email: email.value, password: password.value}),
-  });
-  if (r.ok) { location.href = '/dashboard'; }
-  else {
-    msg.textContent = (await r.json()).detail || 'Login failed';
-    msg.classList.add('show'); btn.disabled = false;
+  const email = document.getElementById('email'), password = document.getElementById('password');
+  const msg = document.getElementById('msg');
+  const fail = (t) => { msg.textContent = t; msg.hidden = false; };
+  msg.hidden = true;
+  if (!email.value.trim() || !password.value) return fail('Enter your email and password.');
+  const btn = e.target.querySelector('[type=submit]');
+  btn.disabled = true; btn.classList.add('is-busy');
+  try {
+    const r = await fetch('/api/login', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({email: email.value, password: password.value}),
+    });
+    if (r.ok) { location.href = '/dashboard'; return; }
+    fail(r.status === 401 ? 'Wrong email or password.'
+        : ((await r.json().catch(() => ({}))).detail || 'Login failed — try again.'));
+  } catch (_) {
+    fail("Couldn't reach the server. Check your connection.");
   }
+  btn.disabled = false; btn.classList.remove('is-busy');
 });
 </script>
 {% endblock %}

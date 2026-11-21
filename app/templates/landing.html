@@ -1,92 +1,101 @@
 {% extends "base.html" %}
-{% block bodyclass %}auth-page{% endblock %}
+{% block bodyclass %}landing-page{% endblock %}
 {% block content %}
 <main class="landing">
-  <nav class="topbar">
-    <div class="brand-row">
-      <img src="/static/favicon.png" alt="" class="brand-logo" width="22" height="22">
+  <nav class="landing-nav">
+    <a class="brand" href="/">
+      <svg class="brand-mark" aria-hidden="true"><use href="#i-logo"/></svg>
       <span class="brand-name">{{ brand }}</span>
-    </div>
+    </a>
     <div class="nav-actions">
       {% if authed %}
-        <a class="btn" href="/dashboard">Go to dashboard</a>
+        <a class="btn btn-primary btn-sm" href="/dashboard">Open dashboard</a>
       {% else %}
-        <a class="btn-ghost" href="/login">Log in</a>
-        <a class="btn" href="/register">Get started</a>
+        <a class="btn btn-ghost btn-sm" href="/login">Log in</a>
+        <a class="btn btn-primary btn-sm" href="/register">Get started</a>
       {% endif %}
     </div>
   </nav>
 
-  <section class="hero">
+  <section class="landing-hero">
     <p class="eyebrow">For VIT placement season</p>
-    <h1>Never miss the moment <br><span class="accent">you're shortlisted.</span></h1>
+    <h1 class="landing-title">Know the moment you're <span class="accent">shortlisted.</span></h1>
     <p class="lead">
-      Recruit watches your CDC mailbox and pings you instantly — the moment
-      <em>your</em> register ID lands on a placement shortlist, a notification
-      fires on your phone. No more doom-scrolling lists.
+      Recruit reads every CDC placement mail and pings your phone the minute
+      <strong>your</strong> register ID shows up on a list. No more scrolling through
+      hundred-name spreadsheets.
     </p>
     <div class="hero-actions">
       {% if authed %}
-        <a class="btn big" href="/dashboard">Open dashboard</a>
+        <a class="btn btn-primary" href="/dashboard">Open dashboard</a>
       {% else %}
-        <a class="btn big" href="/register">Create your account</a>
+        <a class="btn btn-primary" href="/register">Create your account</a>
+        <a class="btn btn-secondary" href="/login">I have an account</a>
       {% endif %}
     </div>
   </section>
 
-  <figure class="banner-wrap">
-    <img src="/static/banner.png" alt="Recruit — know the moment you're shortlisted" class="banner">
-  </figure>
+  <ol class="steps" aria-label="How it works">
+    <li class="step">
+      <span class="step-num">1</span>
+      <strong>Add your IDs</strong>
+      <span>Your register number and NEO ID — lists use either one.</span>
+    </li>
+    <li class="step">
+      <span class="step-num">2</span>
+      <strong>We read CDC mail</strong>
+      <span>New placement mail is checked every few minutes.</span>
+    </li>
+    <li class="step">
+      <span class="step-num">3</span>
+      <strong>Your phone buzzes</strong>
+      <span>Only for lists with your ID. Everything else stays in the feed.</span>
+    </li>
+  </ol>
 
-  <div class="mini-stats">
-    <div><strong class="mono">Your IDs</strong><span>Add as many as you track</span></div>
-    <div><strong class="mono">Instant</strong><span>Push within minutes of a mail</span></div>
-    <div><strong class="mono">Private</strong><span>Only your shortlists matter</span></div>
-  </div>
-
-  <section class="install">
-    <h2 class="install-title">Install Recruit as an app <span class="panel-tag">for instant notifications</span></h2>
+  <section class="install" aria-labelledby="install-title">
+    <h2 class="section-title" id="install-title">Install it as an app</h2>
     <p class="install-lead">
-      Recruit works in any browser, but to get push notifications on your phone you
-      need to add it to your home screen. It takes ~15 seconds.
+      Recruit works in any browser, but phones only deliver push notifications to
+      installed apps. It takes about 15 seconds.
     </p>
 
     <div class="install-grid">
       <div class="install-card">
-        <div class="install-ico">⬇️</div>
-        <h3>Android / Chrome</h3>
+        <svg class="install-ico" aria-hidden="true"><use href="#i-phone"/></svg>
+        <h3>Android · Chrome</h3>
         <ol>
-          <li>Open <span class="mono">recruit.98487840.xyz</span> in Chrome</li>
-          <li>Tap the <strong>⋮</strong> menu (top-right)</li>
-          <li>Tap <strong>“Add to Home screen”</strong> / <strong>“Install app”</strong></li>
-          <li>Confirm — an app icon appears on your home screen</li>
+          <li>Open <span class="mono">{{ request.url.hostname }}</span> in Chrome</li>
+          <li>Tap the <strong>⋮</strong> menu, top-right</li>
+          <li>Tap <strong>Install app</strong> or <strong>Add to Home screen</strong></li>
         </ol>
       </div>
-
       <div class="install-card">
-        <div class="install-ico">🍎</div>
-        <h3>iPhone / iPad (Safari)</h3>
+        <svg class="install-ico" aria-hidden="true"><use href="#i-phone"/></svg>
+        <h3>iPhone · Safari</h3>
         <ol>
-          <li>Open <span class="mono">recruit.98487840.xyz</span> in Safari</li>
-          <li>Tap the <strong>Share</strong> button (the box-with-up-arrow)</li>
-          <li>Scroll and tap <strong>“Add to Home Screen”</strong></li>
-          <li>Tap <strong>Add</strong> — it opens full-screen like a real app</li>
+          <li>Open <span class="mono">{{ request.url.hostname }}</span> in Safari</li>
+          <li>Tap <strong>Share</strong> (the box with an arrow)</li>
+          <li>Tap <strong>Add to Home Screen</strong>, then <strong>Add</strong></li>
         </ol>
       </div>
-
       <div class="install-card">
-        <div class="install-ico">💻</div>
-        <h3>Desktop (Chrome / Edge)</h3>
+        <svg class="install-ico" aria-hidden="true"><use href="#i-laptop"/></svg>
+        <h3>Desktop · Chrome / Edge</h3>
         <ol>
-          <li>Open <span class="mono">recruit.98487840.xyz</span></li>
-          <li>Click the <strong>install icon</strong> (⊞ / ⬆) in the address bar, or the top-right <strong>⋮</strong>→ “Install Recruit”</li>
-          <li>It launches in its own window, ready for notifications</li>
+          <li>Click the <strong>install icon</strong> in the address bar</li>
+          <li>Or <strong>⋮</strong> → <strong>Install Recruit</strong></li>
+          <li>It opens in its own window</li>
         </ol>
       </div>
     </div>
 
-    <div class="install-note">
-      🔔 After installing, open the app and tap <strong>“Enable Notifications”</strong> so pushes reach you.
+    <div class="callout callout-quiet install-note">
+      <svg class="callout-ico" aria-hidden="true"><use href="#i-bell"/></svg>
+      <div class="callout-text">
+        <strong>Last step</strong>
+        <span>Open the installed app and tap <b>Turn on</b> notifications.</span>
+      </div>
     </div>
   </section>
 </main>

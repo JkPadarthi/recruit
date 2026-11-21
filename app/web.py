@@ -92,8 +92,8 @@ def manifest():
         "short_name": settings.brand_name,
         "start_url": "/dashboard",
         "display": "standalone",
-        "background_color": "#07070b",
-        "theme_color": "#07070b",
+        "background_color": "#0E1715",
+        "theme_color": "#0E1715",
         "icons": [
             {"src": "/static/icon-192.png?v=2", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
             {"src": "/static/icon-384.png?v=2", "sizes": "384x384", "type": "image/png", "purpose": "any maskable"},

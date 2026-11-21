@@ -73,9 +73,10 @@ class RegisterIn(BaseModel):
     branch: str = ""
     division: str = ""
 class ProfileIn(BaseModel):
-    name: str = ""
-    branch: str = ""
-    division: str = ""
+    # None = "not sent, keep the current value" (partial update).
+    name: str | None = None
+    branch: str | None = None
+    division: str | None = None
 class LoginIn(BaseModel):
     email: str
     password: str
@@ -157,12 +158,16 @@ def me(request: Request):
 
 @app.put("/api/me/profile")
 def update_profile(body: ProfileIn, request: Request):
-    """Let a user set/change their name, branch subgroup & division (bt/mba)."""
+    """Let a user set/change their name, branch subgroup & division (bt/mba).
+    Only fields present in the body change — omitting `name` no longer blanks it."""
     with db.session() as s:
         u = _current_user(request, s)
-        u.name = body.name.strip()
-        u.branch = body.branch.strip()
-        u.division = body.division.strip().lower()
+        if body.name is not None:
+            u.name = body.name.strip()
+        if body.branch is not None:
+            u.branch = body.branch.strip()
+        if body.division is not None:
+            u.division = body.division.strip().lower()
         s.commit()
         return {"id": u.id, "name": u.name, "branch": u.branch, "division": u.division}
 

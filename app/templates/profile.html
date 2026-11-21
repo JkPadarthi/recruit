@@ -1,55 +1,76 @@
 {% extends "base.html" %}
-{% block bodyclass %}dash-page{% endblock %}
+{% block bodyclass %}app-page{% endblock %}
+{% block title %} · Profile{% endblock %}
 {% block content %}
+{% set page = 'profile' %}
 {% include "_sidebar.html" %}
-<main class="dash-main">
-  <header class="dash-head">
-    <div>
-      <h1>Profile</h1>
-      <p class="dash-sub">Your division &amp; branch — these control which placement mails and notifications you see.</p>
-    </div>
-    <div id="live-indicator" class="live">
-      <span class="live-dot"></span><span>live</span>
-    </div>
-  </header>
-
-  <section class="stat-row">
-    <div class="stat"><span class="stat-num" id="pf-division-label">–</span><span class="stat-lab">Division</span></div>
-    <div class="stat"><span class="stat-num" id="pf-branch-label">–</span><span class="stat-lab">Branch</span></div>
-  </section>
-
-  <div class="dash-grid">
-    <section id="profile-sec" class="panel panel-profile">
-      <div class="panel-head">
-        <h2>Profile</h2>
-        <span class="panel-tag">who you are — controls what you see</span>
+<main class="page">
+  <section class="tab" aria-labelledby="profile-title">
+    <div class="tab-head">
+      <div>
+        <h1 class="tab-title" id="profile-title">Profile</h1>
+        <p class="tab-sub" id="pf-email">&nbsp;</p>
       </div>
-      <div class="profile-form">
-        <label>Division <span class="hint">B.Tech or MBA</span>
-          <select id="pf-division">
-            <option value="">Select…</option>
-            <option value="bt">B.Tech</option>
-            <option value="mba">MBA</option>
-          </select>
-        </label>
-        <label>Branch / subgroup <span class="hint">e.g. CSE, AIML, Core, InfoSec, General</span>
-          <input id="pf-branch" list="pf-branch-options" placeholder="e.g. AIML">
-          <datalist id="pf-branch-options">
-            <option value="CSE"><option value="AIML"><option value="Core"><option value="Information Security"><option value="IT"><option value="ECE"><option value="General"><option value="MBA"><option value="Finance"><option value="Marketing"><option value="HR">
-          </datalist>
-        </label>
-        <div class="profile-row">
-          <button id="pf-save" class="btn" type="button">Save</button>
-          <span id="pf-note" class="admin-note"></span>
+    </div>
+
+    <!-- Notifications for THIS device -->
+    <div class="me-section">
+      <h2>Notifications</h2>
+      <p>Pushes go to each device you turn them on for. This setting is for <em>this</em> device.</p>
+      <div class="push-row">
+        <svg class="push-row-ico" aria-hidden="true"><use href="#i-bell"/></svg>
+        <div class="push-row-text">
+          <strong id="push-state-title">Checking…</strong>
+          <span id="push-state-sub" class="muted small"></span>
+        </div>
+        <button id="push-status" class="btn btn-secondary btn-sm push-btn" type="button">
+          <span class="push-label">Turn on</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Who you are: controls which mails show up -->
+    <form id="profile-form" class="me-section form" novalidate>
+      <div>
+        <h2>About you</h2>
+        <p>Your division filters the feed — B.Tech and MBA drives are sent to different people.</p>
+      </div>
+      <label class="field">
+        <span class="field-label">Name</span>
+        <input id="pf-name" class="input" autocomplete="name" maxlength="80">
+      </label>
+      <div class="field">
+        <span class="field-label" id="pf-division-label">Division</span>
+        <input type="hidden" id="pf-division">
+        <div class="seg" role="radiogroup" aria-labelledby="pf-division-label" id="pf-division-seg">
+          <button type="button" class="seg-btn" role="radio" aria-checked="false" data-value="bt">B.Tech</button>
+          <button type="button" class="seg-btn" role="radio" aria-checked="false" data-value="mba">MBA</button>
         </div>
       </div>
-    </section>
-  </div>
+      <label class="field">
+        <span class="field-label">Branch / subgroup <span class="hint">CSE, AIML, Core, InfoSec…</span></span>
+        <input id="pf-branch" class="input" list="pf-branch-options" placeholder="e.g. AIML" maxlength="60">
+        <datalist id="pf-branch-options">
+          <option value="CSE"><option value="AIML"><option value="Core"><option value="Information Security"><option value="IT"><option value="ECE"><option value="General"><option value="MBA"><option value="Finance"><option value="Marketing"><option value="HR">
+        </datalist>
+      </label>
+      <p id="pf-note" class="form-note" role="status" hidden></p>
+      <button id="pf-save" class="btn btn-primary btn-block" type="submit">Save changes</button>
+    </form>
+
+    <div class="me-section">
+      <h2>Session</h2>
+      <form id="logout-form" method="post" action="/api/logout">
+        <button type="submit" class="btn btn-danger btn-block"><svg aria-hidden="true"><use href="#i-logout"/></svg>Log out</button>
+      </form>
+    </div>
+  </section>
 </main>
 
-<script src="/static/app.js?v=15" defer></script>
 <script>
   window.RECRUIT_VAPID_KEY = "{{ vapid_public_key }}";
   window.RECRUIT_POLL_MS = 15000;
 </script>
+<script src="/static/ids.js?v=2" defer></script>
+<script src="/static/app.js?v=21" defer></script>
 {% endblock %}
