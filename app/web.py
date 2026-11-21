@@ -95,8 +95,12 @@ def manifest():
         "background_color": "#0E1715",
         "theme_color": "#0E1715",
         "icons": [
-            {"src": "/static/icon-192.png?v=2", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
-            {"src": "/static/icon-384.png?v=2", "sizes": "384x384", "type": "image/png", "purpose": "any maskable"},
-            {"src": "/static/icon-512.png?v=2", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"},
+            {"src": "/static/icon-192.png?v=3", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+            {"src": "/static/icon-384.png?v=3", "sizes": "384x384", "type": "image/png", "purpose": "any"},
+            {"src": "/static/icon-512.png?v=3", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+            # Separate file, padded into the middle 80% circle: Android masks a
+            # maskable icon and would otherwise crop the dot off the corner.
+            {"src": "/static/icon-maskable-512.png?v=3", "sizes": "512x512",
+             "type": "image/png", "purpose": "maskable"},
         ],
     })

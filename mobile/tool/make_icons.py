@@ -3,6 +3,8 @@
 
 Run from mobile/:  python3 tool/make_icons.py
 
+PWA icons are generated next door by:  python3 scripts/make_pwa_icons.py
+
 Design notes, so a future edit does not undo them:
   * One glyph, no hairlines. The previous mark lost its frame, arcs and negative
     gaps below 48 px. Everything here survives being scaled to 48 px because it is
@@ -13,70 +15,16 @@ Design notes, so a future edit does not undo them:
   * Android adaptive icons must keep their content inside the middle ~66% (the
     launcher masks and parades the rest), so the foreground layer is padded hard.
 """
+import sys
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont
+HERE = Path(__file__).resolve().parent.parent          # mobile/
 
-HERE = Path(__file__).resolve().parent.parent
-SAFFRON = (244, 179, 61, 255)
-TILE = (22, 33, 30, 255)   # R.surface, not the page background
-FONT = HERE / "assets" / "fonts" / "Bricolage-700.ttf"
-
-MASTER = 2048          # supersample; everything is downsampled from this
-SS = 4                 # extra factor for shape anti-aliasing
-
-
-def draw_mark(size: int, *, tile: bool, pad: float) -> Image.Image:
-    """The mark at `size` px. `pad` is the fraction of the canvas kept empty."""
-    s = size * SS
-    img = Image.new("RGBA", (s, s), TILE if tile else (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-
-    inner = s * (1 - 2 * pad)
-    # The R: sized by bounding box, then centred on its own ink, not its em box.
-    font = ImageFont.truetype(str(FONT), int(inner * 1.02))
-    box = d.textbbox((0, 0), "R", font=font)
-    gw, gh = box[2] - box[0], box[3] - box[1]
-    scale = min(inner / gw, inner / gh)
-    if scale < 1:
-        font = ImageFont.truetype(str(FONT), int(font.size * scale))
-        box = d.textbbox((0, 0), "R", font=font)
-        gw, gh = box[2] - box[0], box[3] - box[1]
-
-    cx, cy = s * 0.47, s * 0.477          # nudged up-left: the dot takes the corner
-    d.text((cx - gw / 2 - box[0], cy - gh / 2 - box[1]), "R", font=font, fill=SAFFRON)
-
-    # One dot, bottom-right: "you were shortlisted". It sits clear of the
-    # letterform on purpose — an earlier version painted a tile-coloured ring
-    # around it, which ate the R's leg and made the mark read as a P.
-    r = gh * 0.155
-    dx, dy = s * 0.775, s * 0.775
-    d.ellipse([dx - r, dy - r, dx + r, dy + r], fill=SAFFRON)
-
-    return img.resize((size, size), Image.Resampling.LANCZOS)
-
-
-def draw_stat_icon(size: int) -> Image.Image:
-    """Status-bar icon: white on transparent, no tile, no dot.
-
-    The system paints small icons as a white silhouette, so the coloured tile icon
-    turns into a solid white square in the status bar. This is the glyph only.
-    """
-    s = size * SS
-    img = Image.new("RGBA", (s, s), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-    inner = s * 0.88
-    font = ImageFont.truetype(str(FONT), int(inner * 1.02))
-    box = d.textbbox((0, 0), "R", font=font)
-    gw, gh = box[2] - box[0], box[3] - box[1]
-    scale = min(inner / gw, inner / gh)
-    if scale < 1:
-        font = ImageFont.truetype(str(FONT), int(font.size * scale))
-        box = d.textbbox((0, 0), "R", font=font)
-        gw, gh = box[2] - box[0], box[3] - box[1]
-    d.text((s / 2 - gw / 2 - box[0], s / 2 - gh / 2 - box[1]), "R",
-           font=font, fill=(255, 255, 255, 255))
-    return img.resize((size, size), Image.Resampling.LANCZOS)
+# Geometry lives in scripts/icon_art.py, shared with scripts/make_pwa_icons.py, so the
+# web icon and the native icon cannot drift apart.
+sys.path.insert(0, str(HERE.parent / "scripts"))
+from PIL import Image  # noqa: E402
+from icon_art import mark as draw_mark, stat_icon as draw_stat_icon  # noqa: E402
 
 
 def write(img: Image.Image, path: Path) -> None:

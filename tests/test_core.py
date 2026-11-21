@@ -1,3 +1,5 @@
+from pathlib import Path
+
 """Auth, onboarding, hits, and end-to-end ingest → match → hit."""
 from tests.conftest import register  # noqa: F401 (fixture)
 
@@ -349,3 +351,12 @@ async def test_app_pages_render_with_tabs(client, register):
         assert el in prof.text, el
     m = (await client.get("/manifest.json")).json()
     assert m["theme_color"] == "#0E1715"
+    # A manifest icon that 404s breaks "Add to Home Screen" with no error anywhere,
+    # so assert every declared file is actually on disk.
+    root = Path(__file__).resolve().parent.parent
+    purposes = set()
+    for icon in m["icons"]:
+        src = icon["src"].split("?")[0].lstrip("/")
+        assert (root / src).is_file(), f"manifest icon missing on disk: {src}"
+        purposes.add(icon["purpose"])
+    assert {"any", "maskable"} <= purposes, purposes

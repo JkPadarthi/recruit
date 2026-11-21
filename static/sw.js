@@ -11,8 +11,8 @@ self.addEventListener('push', (e) => {
   e.waitUntil(
     self.registration.showNotification(data.title || 'Recruit', {
       body: data.body || '',
-      icon: '/static/icon-192.png',
-      badge: '/static/icon-192.png',
+      icon: '/static/icon-192.png?v=3',
+      badge: '/static/icon-192.png?v=3',
       // One notification per mail: a re-send (or the same mail arriving on two
       // devices) REPLACES the existing card instead of stacking duplicates.
       tag: data.tag || 'recruit',
