@@ -1,4 +1,5 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../api.dart';
 
@@ -172,6 +173,16 @@ class _LoginScreenState extends State<LoginScreen> {
                         ? 'Have an account? Log in'
                         : 'New here? Create an account'),
                   ),
+                  // Resets are a web flow (the link arrives by mail and is opened in a
+                  // browser), so the app just has to be able to REACH it.
+                  if (!_creating)
+                    TextButton(
+                      onPressed: () => launchUrl(
+                        Uri.parse('${widget.api.baseUrl}/forgot'),
+                        mode: LaunchMode.externalApplication,
+                      ),
+                      child: const Text('Forgot your password?'),
+                    ),
                 ],
               ),
             ),

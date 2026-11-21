@@ -32,7 +32,8 @@ class _HomeScreenState extends State<HomeScreen> {
   bool get _isAdmin => widget.me['admin'] == true;
 
   List<Widget> _tabs() => [
-        HitsTab(api: widget.api, unread: _unread),
+        HitsTab(api: widget.api, unread: _unread,
+            myIds: ((widget.me['ids'] as List<dynamic>?) ?? const []).length),
         FeedTab(api: widget.api),
         ProfileTab(api: widget.api, me: widget.me, onSignOut: widget.onSignOut),
         if (_isAdmin)
@@ -131,9 +132,10 @@ class _Empty extends StatelessWidget {
 
 // ---------------------------------------------------------------------- hits
 class HitsTab extends StatefulWidget {
-  const HitsTab({super.key, required this.api, required this.unread});
+  const HitsTab({super.key, required this.api, required this.unread, this.myIds = 0});
   final ApiClient api;
   final ValueNotifier<int> unread;
+  final int myIds;
 
   @override
   State<HitsTab> createState() => _HitsTabState();
@@ -174,6 +176,22 @@ class _HitsTabState extends State<HitsTab> {
     }
   }
 
+  /// The web dashboard has this button and eleven unread dots is exactly when you want
+  /// it. Optimistic like the PWA: flip locally, then fire the (idempotent) per-hit calls.
+  Future<void> _markAllRead() async {
+    final ids = _hits
+        .where((h) => !h.read && !_readNow.contains(h.id))
+        .map((h) => h.id)
+        .toList();
+    if (ids.isEmpty) return;
+    setState(() => _readNow.addAll(ids));
+    widget.unread.value = 0;
+    for (final id in ids) {
+      unawaited(widget.api.markRead(id).catchError((_) {}));
+    }
+    await _load(silent: true);
+  }
+
   Future<void> _open(Hit hit) async {
     if (!hit.read && !_readNow.contains(hit.id)) {
       setState(() => _readNow.add(hit.id));
@@ -208,27 +226,73 @@ class _HitsTabState extends State<HitsTab> {
         ),
       );
     }
-    return RefreshIndicator(
-      color: R.saffron,
-      onRefresh: _load,
-      child: _Page(
-        child: ListView.separated(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(14, 12, 14, 28),
-          itemCount: _hits.length,
-          separatorBuilder: (_, _) => const SizedBox(height: 9),
-          itemBuilder: (_, i) {
-            final h = _hits[i];
-            return _HitCard(
-              hit: h,
-              unread: !h.read && !_readNow.contains(h.id),
-              onTap: () => _open(h),
-            );
-          },
-        ),
+    final unread = _hits.where((h) => !h.read && !_readNow.contains(h.id)).length;
+    return _Page(
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+            child: Row(
+              children: [
+                _statCell('Your hits', '${_hits.length}'),
+                const SizedBox(width: 8),
+                _statCell('Unread', '$unread'),
+                const SizedBox(width: 8),
+                _statCell('IDs tracked', '${widget.myIds}'),
+              ],
+            ),
+          ),
+          if (unread >= 2)
+            Align(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(0, 2, 8, 0),
+                child: TextButton.icon(
+                  onPressed: _markAllRead,
+                  icon: const Icon(Icons.done_all_rounded, size: 15),
+                  style: TextButton.styleFrom(foregroundColor: R.saffron),
+                  label: const Text('Mark all read', style: R.meta),
+                ),
+              ),
+            ),
+          Expanded(
+            child: RefreshIndicator(
+              color: R.saffron,
+              onRefresh: _load,
+              child: ListView.separated(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(14, 10, 14, 28),
+                itemCount: _hits.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 9),
+                itemBuilder: (_, i) {
+                  final h = _hits[i];
+                  return _HitCard(
+                    hit: h,
+                    unread: !h.read && !_readNow.contains(h.id),
+                    onTap: () => _open(h),
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
+
+  Widget _statCell(String label, String value) => Expanded(
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 9),
+          decoration: R.card(soft: true),
+          child: Column(
+            children: [
+              Text(value, style: R.brand.copyWith(fontSize: 17, color: R.saffron)),
+              const SizedBox(height: 1),
+              Text(label, style: R.meta),
+            ],
+          ),
+        ),
+      );
 }
 
 class _HitCard extends StatelessWidget {
@@ -427,7 +491,16 @@ class FeedTab extends StatefulWidget {
   State<FeedTab> createState() => _FeedTabState();
 }
 
+/// The PWA groups "selection" under Shortlists; anything that is not a shortlist or an
+/// announcement simply is not counted by a chip (it still shows under All).
+String _kindGroup(String k) => k == 'selection' ? 'shortlist' : k;
+
 class _FeedTabState extends State<FeedTab> {
+  String _filter = 'all';
+
+  List<Mail> get _shown => _filter == 'all'
+      ? _mails
+      : _mails.where((m) => _kindGroup(m.kind) == _filter).toList();
   List<Mail> _mails = const [];
   bool _loading = true;
 
@@ -456,17 +529,79 @@ class _FeedTabState extends State<FeedTab> {
     if (_loading && _mails.isEmpty) {
       return const Center(child: CircularProgressIndicator(color: R.saffron));
     }
-    return RefreshIndicator(
-      color: R.saffron,
-      onRefresh: _load,
-      child: _Page(
-        child: ListView.separated(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(14, 12, 14, 28),
-          itemCount: _mails.length,
-          separatorBuilder: (_, _) => const SizedBox(height: 9),
-          itemBuilder: (_, i) => _MailCard(mail: _mails[i]),
+    final shown = _shown;
+    return _Page(
+      child: Column(
+        children: [
+          _chips(),
+          Expanded(
+            child: RefreshIndicator(
+              color: R.saffron,
+              onRefresh: _load,
+              child: shown.isEmpty
+                  ? _Empty(
+                      icon: Icons.inbox_outlined,
+                      title: _mails.isEmpty
+                          ? 'Nothing yet'
+                          : 'No ${_filter}s in the latest mail',
+                      hint: _mails.isEmpty
+                          ? 'New CDC mails show up here within a few minutes.'
+                          : null,
+                    )
+                  : ListView.separated(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.fromLTRB(14, 8, 14, 28),
+                      itemCount: shown.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 9),
+                      itemBuilder: (_, i) => _MailCard(mail: shown[i]),
+                    ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _chips() {
+    final counts = <String, int>{'all': _mails.length, 'shortlist': 0, 'announcement': 0};
+    for (final m in _mails) {
+      final k = _kindGroup(m.kind);
+      if (counts.containsKey(k)) counts[k] = counts[k]! + 1;
+    }
+
+    Widget chip(String id, String label) {
+      final on = _filter == id;
+      final n = counts[id] ?? 0;
+      return Padding(
+        padding: const EdgeInsets.only(right: 7),
+        child: InkWell(
+          onTap: () => setState(() => _filter = id),
+          borderRadius: BorderRadius.circular(99),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+            decoration: BoxDecoration(
+              color: on ? R.saffronSoft : R.surface2,
+              borderRadius: BorderRadius.circular(99),
+              border: Border.all(color: on ? const Color(0x4DF4B33D) : R.line),
+            ),
+            child: Text(n > 0 ? '$label $n' : label,
+                style: R.meta.copyWith(
+                    color: on ? R.saffron : R.ink3,
+                    fontWeight: on ? FontWeight.w700 : FontWeight.w500)),
+          ),
         ),
+      );
+    }
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
+      child: Row(
+        children: [
+          chip('all', 'All'),
+          chip('shortlist', 'Shortlists'),
+          chip('announcement', 'Announcements'),
+        ],
       ),
     );
   }

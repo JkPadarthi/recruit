@@ -36,6 +36,14 @@ class ApiClient {
     await sp.setString(_cookieKey, pair);
   }
 
+  /// Called when a request comes back 401 mid-session — the cookie is dead (password
+  /// changed on another device, epoch bumped, server reset). The app must return to the
+  /// login screen; the PWA does this with a redirect, and silently rendering an empty
+  /// list instead is the worst possible outcome because it looks like "no shortlists".
+  void Function()? onAuthLost;
+
+  String get baseUrl => _base;
+
   Future<void> logout() async {
     // Best effort: tell the server to drop its cookie, then clear locally.
     try {
@@ -56,7 +64,7 @@ class ApiClient {
     final r = await _http
         .get(Uri.parse('$_base$path'), headers: _headers())
         .timeout(const Duration(seconds: 20));
-    return _decode(r);
+    return _decode(r, path);
   }
 
   Future<dynamic> _put(String path, Map<String, dynamic> body) async {
@@ -64,14 +72,14 @@ class ApiClient {
         .put(Uri.parse('$_base$path'),
             headers: _headers(json: true), body: jsonEncode(body))
         .timeout(const Duration(seconds: 20));
-    return _decode(r);
+    return _decode(r, path);
   }
 
   Future<dynamic> _delete(String path) async {
     final r = await _http
         .delete(Uri.parse('$_base$path'), headers: _headers())
         .timeout(const Duration(seconds: 20));
-    return _decode(r);
+    return _decode(r, path);
   }
 
   Future<dynamic> _post(String path, Map<String, dynamic> body) async {
@@ -79,11 +87,17 @@ class ApiClient {
         .post(Uri.parse('$_base$path'),
             headers: _headers(json: true), body: jsonEncode(body))
         .timeout(const Duration(seconds: 20));
-    return _decode(r);
+    return _decode(r, path);
   }
 
-  dynamic _decode(http.Response r) {
+  dynamic _decode(http.Response r, String path) {
     if (r.statusCode >= 400) {
+      // A 401 on login/register is "wrong password", not a dead session.
+      if (r.statusCode == 401 &&
+          !path.startsWith('/api/login') &&
+          !path.startsWith('/api/register')) {
+        onAuthLost?.call();
+      }
       throw ApiException(r.statusCode, r.body);
     }
     if (r.body.isEmpty) return null;

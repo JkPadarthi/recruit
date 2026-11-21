@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:material_ui/material_ui.dart';
 
 import 'api.dart';
@@ -54,12 +56,6 @@ class _RootState extends State<Root> {
   _Phase _phase = _Phase.loading;
   Map<String, dynamic>? _me;
 
-  @override
-  void initState() {
-    super.initState();
-    _boot();
-  }
-
   Future<void> _boot() async {
     await _api.loadSession();
     if (!_api.hasSession) {
@@ -84,6 +80,18 @@ class _RootState extends State<Root> {
     } catch (_) {
       if (mounted) setState(() => _phase = _Phase.login);
     }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // Any 401 mid-session sends the traveller back to the gate, the way the PWA
+    // redirects to /login. Without this the tabs quietly render empty lists.
+    _api.onAuthLost = () {
+      if (!mounted || _phase == _Phase.login) return;
+      unawaited(_signOut());
+    };
+    _boot();
   }
 
   Future<void> _onLoggedIn(Map<String, dynamic> me) async {
