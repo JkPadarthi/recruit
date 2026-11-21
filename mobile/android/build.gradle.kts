@@ -19,6 +19,19 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
+// firebase_core's release lint task crashes on AGP 8.x with compileSdk 37:
+//   "Unexpected failure during lint analysis (this is a bug in lint...)"
+// It is a tooling bug in a dependency's lint run, not something in our code, and
+// it only affects `lintVital...Release`. `flutter analyze` is our static gate,
+// so disable the release lint-vital pass rather than pinning AGP backwards.
+subprojects {
+    tasks.configureEach {
+        if (name.startsWith("lintVital")) {
+            enabled = false
+        }
+    }
+}
+
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }

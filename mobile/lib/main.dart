@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 
 import 'api.dart';
 import 'notify.dart';
+import 'push.dart';
 import 'screens/home.dart';
 import 'screens/login.dart';
 
@@ -70,6 +71,9 @@ class _RootState extends State<Root> {
         _me = me;
         _phase = _Phase.ready;
       });
+      // Firebase, FCM token, and the alarm-arming listeners. No-op until a
+      // Firebase project exists.
+      await Push.instance.start(_api);
     } on ApiException catch (e) {
       if (e.isAuth) await _api.logout();
       if (mounted) setState(() => _phase = _Phase.login);
@@ -83,6 +87,8 @@ class _RootState extends State<Root> {
       _me = me;
       _phase = _Phase.ready;
     });
+    // Now there is a session cookie, so the device token has an owner.
+    await Push.instance.start(_api);
   }
 
   Future<void> _signOut() async {

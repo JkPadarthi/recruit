@@ -148,11 +148,16 @@ class Notifier {
   }
 
   /// Handles the server's data payload — the same contract the Kotlin shell used.
-  Future<void> handlePushData(Map<String, dynamic> data) async {
+  Future<void> handlePushData(
+    Map<String, dynamic> data, {
+    bool displayNotification = true,
+  }) async {
     final title = (data['title'] as String?)?.trim();
     final body = (data['body'] as String?) ?? '';
     final tag = (data['tag'] as String?) ?? 'recruit';
-    if (title != null && title.isNotEmpty) {
+    // In the background isolate Play Services has already rendered the
+    // notification block; showing another would double-buzz the user.
+    if (displayNotification && title != null && title.isNotEmpty) {
       await show(tag: tag, title: title, body: body);
     }
     final whenIso = (data['when_iso'] as String?)?.trim();

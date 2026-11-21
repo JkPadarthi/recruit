@@ -182,13 +182,31 @@ def send(db: Session, per_user: dict[int, dict[str, str]]) -> dict[str, int]:
     for uid, data in per_user.items():
         message_data = {k: str(v) for k, v in data.items() if v is not None and str(v) != ""}
         for token in by_user.get(uid, []):
-            body = json.dumps({
+            # Why BOTH a notification block and data:
+            #  - `notification` is rendered by Play Services itself, so the user
+            #    sees it even when the app process is dead and Flutter never runs.
+            #  - `data` is what the app needs to schedule the local deadline alarm.
+            # Data-only would make display depend on our code being scheduled;
+            # notification-only would carry no payload for the alarm.
+            payload: dict = {
                 "message": {
                     "token": token,
+                    "notification": {
+                        "title": str(message_data.get("title", "Recruit")),
+                        "body": str(message_data.get("body", "")),
+                    },
                     "data": message_data,
-                    "android": {"priority": "HIGH", "ttl": "3600s"},
+                    "android": {
+                        "priority": "HIGH",
+                        "ttl": "3600s",
+                        "notification": {
+                            "channel_id": "recruit_updates",
+                            "tag": str(message_data.get("tag", "recruit")),
+                        },
+                    },
                 }
-            }).encode()
+            }
+            body = json.dumps(payload).encode()
             req = urllib.request.Request(
                 _SEND_URI.format(project=project), data=body,
                 headers={
