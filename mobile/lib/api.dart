@@ -43,7 +43,7 @@ class ApiClient {
 
   Map<String, String> _headers({bool json = false}) => {
         if (json) 'Content-Type': 'application/json',
-        if (_cookie != null) 'Cookie': _cookie!,
+        'Cookie': ?_cookie,   // omitted entirely when there is no session
         'Accept': 'application/json',
       };
 

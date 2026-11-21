@@ -1,5 +1,5 @@
 // Typed views of the API payloads. Every field is defensive: the server has
-/// shipped this shape for months, but a missing key must never crash a list.
+// shipped this shape for months, but a missing key must never crash a list.
 
 class Hit {
   Hit({
