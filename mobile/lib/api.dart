@@ -181,6 +181,12 @@ class ApiClient {
     return (await _put('/api/me/profile', body)) as Map<String, dynamic>;
   }
 
+  /// Changing the login address. The password is required by the server: the email
+  /// is also the reset channel, so a stolen session must not be able to move it.
+  Future<Map<String, dynamic>> updateEmail(String email, String password) async =>
+      (await _put('/api/me/email', {'email': email, 'password': password}))
+          as Map<String, dynamic>;
+
   Future<Map<String, dynamic>> deleteId(String normalizedId) async =>
       (await _delete('/api/me/ids/$normalizedId')) as Map<String, dynamic>;
 
@@ -199,6 +205,19 @@ class ApiClient {
       })) as Map<String, dynamic>?) ??
       const {};
 
+  /// People who pressed "forgot password" while mail was off — nobody answered them yet.
+  Future<List<Map<String, dynamic>>> adminResetRequests() async {
+    final j = await _get('/api/admin/password-requests') as Map<String, dynamic>;
+    return ((j['requests'] as List<dynamic>?) ?? const [])
+        .map((e) => e as Map<String, dynamic>)
+        .toList();
+  }
+
+  /// Mints a single-use link the admin can forward by any channel at all.
+  Future<Map<String, dynamic>> adminResetLink(int userId) async =>
+      (await _post('/api/admin/users/$userId/reset-link', const {}))
+          as Map<String, dynamic>;
+
   void close() => _http.close();
 }
 
@@ -206,6 +225,16 @@ class ApiException implements Exception {
   const ApiException(this.status, this.body);
   final int status;
   final String body;
+
+  /// FastAPI puts the human-readable reason in {"detail": ...}; the app shows that
+  /// verbatim ("Wrong password.", "Another account already uses that address.").
+  String get detail {
+    try {
+      final j = jsonDecode(body);
+      if (j is Map && j['detail'] is String) return j['detail'] as String;
+    } catch (_) {}
+    return body;
+  }
 
   /// 401 means the session cookie is gone or stale — send the user to login.
   bool get isAuth => status == 401;

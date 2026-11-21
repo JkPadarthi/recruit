@@ -29,6 +29,29 @@
       </div>
     </div>
 
+    <!-- The login address. Fixing a typo'd signup email is why this exists. -->
+    <form id="email-form" class="me-section form" novalidate>
+      <div>
+        <h2>Email</h2>
+        <p>
+          This is how you log in and where password-reset links go — so it has to be one
+          you actually read.
+        </p>
+      </div>
+      <label class="field">
+        <span class="field-label">New email</span>
+        <input id="pf-new-email" class="input" type="email" placeholder="you@vitstudent.ac.in"
+               autocomplete="email" autocapitalize="none" spellcheck="false">
+      </label>
+      <label class="field">
+        <span class="field-label">Current password</span>
+        <input id="pf-email-pw" class="input" type="password" autocomplete="current-password">
+        <span class="field-help">Needed to prove it is you, not whoever is holding the session.</span>
+      </label>
+      <button class="btn btn-primary" type="submit" id="pf-email-save">Update email</button>
+      <p class="form-note" id="pf-email-note" role="status"></p>
+    </form>
+
     <!-- Who you are: controls which mails show up -->
     <form id="profile-form" class="me-section form" novalidate>
       <div>
@@ -72,5 +95,5 @@
   window.RECRUIT_POLL_MS = 15000;
 </script>
 <script src="/static/ids.js?v=2" defer></script>
-<script src="/static/app.js?v=29" defer></script>
+<script src="/static/app.js?v=30" defer></script>
 {% endblock %}

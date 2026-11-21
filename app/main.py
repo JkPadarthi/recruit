@@ -87,6 +87,11 @@ class RegisterIn(BaseModel):
     name: str = ""
     branch: str = ""
     division: str = ""
+class EmailIn(BaseModel):
+    email: str
+    password: str          # current password: the email IS the login identifier
+
+
 class ProfileIn(BaseModel):
     # None = "not sent, keep the current value" (partial update).
     name: str | None = None
@@ -191,6 +196,48 @@ def update_profile(body: ProfileIn, request: Request):
             u.division = body.division.strip().lower()
         s.commit()
         return {"id": u.id, "name": u.name, "branch": u.branch, "division": u.division}
+
+
+@app.put("/api/me/email")
+def update_email(body: EmailIn, request: Request):
+    """Change the login address.
+
+    Requires the current password: without it, anyone holding a live session (a shared
+    laptop, an old cookie) could quietly move the account to their own address and then
+    use "forgot password" to take it over. The email is the reset channel, so this is
+    exactly the field an attacker would want.
+
+    Domains are re-checked against ALLOWED_EMAIL_DOMAINS — a typo'd address is the
+    reason this endpoint exists, and "gmaill.com" must be rejected here too, not only at
+    signup.
+    """
+    new = (body.email or "").strip().lower()
+    if "@" not in new or new.startswith("@") or new.endswith("@"):
+        raise HTTPException(400, "That does not look like an email address.")
+
+    with db.session() as s:
+        u = _current_user(request, s)
+        if not verify_password(body.password or "", u.password_hash):
+            raise HTTPException(401, "Wrong password.")
+        if new == u.email:
+            return {"email": u.email, "changed": False}
+
+        if settings.allowed_email_domains:
+            dom = new.split("@")[-1]
+            if dom not in settings.allowed_email_domains:
+                raise HTTPException(
+                    403, "Use a college or Gmail address ("
+                         + ", ".join(settings.allowed_email_domains) + ").")
+
+        taken = s.execute(select(User).where(User.email == new)).scalar_one_or_none()
+        if taken is not None:
+            raise HTTPException(409, "Another account already uses that address.")
+
+        old = u.email
+        u.email = new
+        s.commit()
+        log.info("email changed for user %s", u.id)
+        return {"email": u.email, "changed": True, "previous": old}
 
 
 # ---- register-ID onboarding -------------------------------------------------

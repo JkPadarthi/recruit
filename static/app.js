@@ -684,6 +684,45 @@ function showResetLink(email, url, minutes) {
   box.prepend(card);
 }
 
+function initProfileEmail() {
+  const form = $('email-form');
+  if (!form) return;
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const note = $('pf-email-note');
+    const email = $('pf-new-email').value.trim();
+    const password = $('pf-email-pw').value;
+    if (!email || !password) {
+      note.textContent = 'Enter the new address and your current password.';
+      note.className = 'form-note is-bad';
+      return;
+    }
+    const btn = $('pf-email-save');
+    btn.disabled = true; btn.classList.add('is-busy');
+    try {
+      const r = await fetch('/api/me/email', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok) {
+        note.textContent = d.changed ? `Saved. Log in with ${d.email} from now on.`
+                                     : 'That is already your email.';
+        note.className = 'form-note is-good';
+        form.reset();
+        if (d.changed) { setText('pf-email', d.email); if (state.me) state.me.email = d.email; }
+      } else {
+        note.textContent = d.detail || 'Could not update the email.';
+        note.className = 'form-note is-bad';
+      }
+    } catch (_) {
+      note.textContent = "Couldn't reach the server. Try again.";
+      note.className = 'form-note is-bad';
+    }
+    btn.disabled = false; btn.classList.remove('is-busy');
+  });
+}
+
 function initAdmin() {
   const sec = $('admin-sec');
   if (!sec) return;
@@ -754,6 +793,7 @@ async function boot() {
   initFeed();
   initHits();
   initAdmin();
+  initProfileEmail();
   document.querySelectorAll('.push-btn').forEach((b) => b.addEventListener('click', togglePush));
   restorePushState();
 

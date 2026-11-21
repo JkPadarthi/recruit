@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:material_ui/material_ui.dart';
 
 import '../api.dart';
@@ -17,6 +18,8 @@ class AdminScreen extends StatefulWidget {
 
 class _AdminScreenState extends State<AdminScreen> {
   Map<String, dynamic>? _stats;
+  List<Map<String, dynamic>> _requests = const [];
+  final Map<int, String> _links = {};      // user_id -> freshly minted link
   bool _loading = true;
   String? _note;
   bool _busy = false;
@@ -30,10 +33,16 @@ class _AdminScreenState extends State<AdminScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final s = await widget.api.adminStats();
+      final results = await Future.wait([
+        widget.api.adminStats(),
+        widget.api.adminResetRequests(),
+      ]);
+      final s = results[0];
+      final reqs = results[1] as List<Map<String, dynamic>>;
       if (!mounted) return;
       setState(() {
         _stats = s;
+        _requests = reqs;
         _loading = false;
       });
     } on ApiException catch (e) {
@@ -54,6 +63,26 @@ class _AdminScreenState extends State<AdminScreen> {
       await _load();
     } catch (e) {
       if (mounted) setState(() => _note = 'Poll failed: $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _makeLink(Map<String, dynamic> req) async {
+    final userId = (req['user_id'] as num).toInt();
+    setState(() => _busy = true);
+    try {
+      final r = await widget.api.adminResetLink(userId);
+      final url = '${r['url'] ?? ''}';
+      if (!mounted) return;
+      setState(() {
+        _links[userId] = url;
+        _note = 'Link for ${req['email']} is valid ${r['expires_in_min']} min.';
+      });
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _note = e.detail);
+    } catch (e) {
+      if (mounted) setState(() => _note = 'Could not create a link: $e');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -148,6 +177,20 @@ class _AdminScreenState extends State<AdminScreen> {
                   const SizedBox(height: 18),
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8, left: 2),
+                    child: Text('Password resets waiting',
+                        style: R.meta.copyWith(fontWeight: FontWeight.w700)),
+                  ),
+                  if (_requests.isEmpty)
+                    Container(
+                      padding: const EdgeInsets.all(11),
+                      decoration: R.card(soft: true),
+                      child: Text('Nobody is waiting on a link.', style: R.meta),
+                    )
+                  else
+                    for (final r in _requests) _requestRow(r),
+                  const SizedBox(height: 18),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8, left: 2),
                     child: Text('Registered accounts',
                         style: R.meta.copyWith(fontWeight: FontWeight.w700)),
                   ),
@@ -174,6 +217,60 @@ class _AdminScreenState extends State<AdminScreen> {
           ),
         ),
       );
+
+  Widget _requestRow(Map<String, dynamic> r) {
+    final userId = (r['user_id'] as num?)?.toInt() ?? 0;
+    final age = (r['age_min'] as num?)?.toInt() ?? 0;
+    final link = _links[userId];
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+      decoration: R.card(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text('${r['email'] ?? ''}',
+                    style: R.small.copyWith(color: R.ink),
+                    overflow: TextOverflow.ellipsis),
+              ),
+              Text(age < 60 ? '${age}m ago' : '${age ~/ 60}h ago', style: R.meta),
+              const SizedBox(width: 4),
+              if (link == null)
+                TextButton(
+                  onPressed: _busy ? null : () => _makeLink(r),
+                  style: TextButton.styleFrom(foregroundColor: R.saffron),
+                  child: const Text('Create link', style: R.meta),
+                ),
+            ],
+          ),
+          if (link != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6, right: 4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: SelectableText(link,
+                        style: R.code.copyWith(fontSize: 11, color: R.ink2),
+                        maxLines: 2),
+                  ),
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () async {
+                      await Clipboard.setData(ClipboardData(text: link));
+                      if (mounted) setState(() => _note = 'Link copied.');
+                    },
+                    icon: const Icon(Icons.copy_rounded, size: 16, color: R.saffron),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 
   Widget _userRow(Map<String, dynamic> u) {
     final ids = ((u['ids'] as List<dynamic>?) ?? const []).map((e) => '$e').toList();

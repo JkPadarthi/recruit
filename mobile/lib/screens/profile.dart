@@ -153,6 +153,34 @@ class _ProfileTabState extends State<ProfileTab> {
                   ),
                 ),
                 const SizedBox(height: 18),
+                _section('Login email'),
+                Container(
+                  padding: const EdgeInsets.fromLTRB(12, 9, 6, 9),
+                  decoration: R.card(),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(email,
+                                style: R.small.copyWith(color: R.ink),
+                                overflow: TextOverflow.ellipsis),
+                            const SizedBox(height: 2),
+                            Text('Reset links go here — fix it if you mistyped it.',
+                                style: R.meta),
+                          ],
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: _editEmail,
+                        style: TextButton.styleFrom(foregroundColor: R.saffron),
+                        child: const Text('Change', style: R.meta),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
                 _section('Your register IDs'),
                 Container(
                   decoration: R.card(),
@@ -408,8 +436,56 @@ class _ProfileTabState extends State<ProfileTab> {
     }
   }
 
-  Widget _field(TextEditingController c, String hint) => TextField(
+  Future<void> _editEmail() async {
+    final emailC = TextEditingController(text: '${_me['email'] ?? ''}');
+    final pwC = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: R.surface,
+        title: Text('Change login email', style: R.subject),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _field(emailC, 'you@vitstudent.ac.in'),
+            const SizedBox(height: 8),
+            _field(pwC, 'Current password', obscure: true),
+            const SizedBox(height: 6),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text('The password proves it is you, not whoever has the session.',
+                  style: R.meta),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Save')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      final r = await widget.api.updateEmail(emailC.text.trim(), pwC.text);
+      await _refreshMe();
+      if (!mounted) return;
+      setState(() => _note = r['changed'] == true
+          ? 'Saved. Log in with ${r['email']} from now on.'
+          : 'That is already your email.');
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _note = e.detail);
+    } catch (e) {
+      if (mounted) setState(() => _note = 'Could not update: $e');
+    }
+  }
+
+  Widget _field(TextEditingController c, String hint, {bool obscure = false}) => TextField(
         controller: c,
+        obscureText: obscure,
         style: R.small.copyWith(color: R.ink),
         cursorColor: R.saffron,
         decoration: InputDecoration(
