@@ -127,6 +127,11 @@ class _ProfileTabState extends State<ProfileTab> {
                         ),
                       ),
                       TextButton(
+                        onPressed: _editProfile,
+                        style: TextButton.styleFrom(foregroundColor: R.saffron),
+                        child: const Text('Edit', style: R.meta),
+                      ),
+                      TextButton(
                         onPressed: widget.onSignOut,
                         style: TextButton.styleFrom(foregroundColor: R.ink3),
                         child: const Text('Sign out', style: R.meta),
@@ -147,8 +152,18 @@ class _ProfileTabState extends State<ProfileTab> {
                             children: [
                               const Icon(Icons.badge_outlined, size: 15, color: R.ink3),
                               const SizedBox(width: 8),
-                              Text('${id['register_id'] ?? id['normalized_id'] ?? ''}',
-                                  style: R.code),
+                              Expanded(
+                                child: Text('${id['register_id'] ?? id['normalized_id'] ?? ''}',
+                                    style: R.code),
+                              ),
+                              InkWell(
+                                onTap: () => _removeId('${id['normalized_id'] ?? ''}'),
+                                borderRadius: BorderRadius.circular(99),
+                                child: const Padding(
+                                  padding: EdgeInsets.all(4),
+                                  child: Icon(Icons.close_rounded, size: 15, color: R.ink3),
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -269,6 +284,89 @@ class _ProfileTabState extends State<ProfileTab> {
               const Icon(Icons.chevron_right_rounded, size: 18, color: R.ink3),
             ],
           ),
+        ),
+      );
+
+  Future<void> _removeId(String normalized) async {
+    if (normalized.isEmpty) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: R.surface,
+        title: Text('Remove $normalized?', style: R.subject),
+        content: Text('You will stop being notified about mails that list this code.',
+            style: R.body),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('Remove', style: R.small.copyWith(color: R.over)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await widget.api.deleteId(normalized);
+      await _refreshMe();
+      if (mounted) setState(() => _note = 'Removed $normalized');
+    } catch (e) {
+      if (mounted) setState(() => _note = 'Could not remove: $e');
+    }
+  }
+
+  Future<void> _editProfile() async {
+    final nameC = TextEditingController(text: '${_me['name'] ?? ''}');
+    final branchC = TextEditingController(text: '${_me['branch'] ?? ''}');
+    final divisionC = TextEditingController(text: '${_me['division'] ?? ''}');
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: R.surface,
+        title: Text('Edit profile', style: R.subject),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _field(nameC, 'Name'),
+            const SizedBox(height: 8),
+            _field(branchC, 'Branch (AIML, CSE, IT…)'),
+            const SizedBox(height: 8),
+            _field(divisionC, 'Division (bt / mba)'),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Save')),
+        ],
+      ),
+    );
+    if (saved != true) return;
+    try {
+      await widget.api.updateProfile(
+        name: nameC.text.trim(),
+        branch: branchC.text.trim(),
+        division: divisionC.text.trim(),
+      );
+      await _refreshMe();
+      if (mounted) setState(() => _note = 'Profile updated');
+    } catch (e) {
+      if (mounted) setState(() => _note = 'Update failed: $e');
+    }
+  }
+
+  Widget _field(TextEditingController c, String hint) => TextField(
+        controller: c,
+        style: R.small.copyWith(color: R.ink),
+        cursorColor: R.saffron,
+        decoration: InputDecoration(
+          isDense: true,
+          hintText: hint,
+          hintStyle: R.meta,
+          filled: true,
+          fillColor: R.surface2,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+          border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(R.rS), borderSide: BorderSide.none),
         ),
       );
 

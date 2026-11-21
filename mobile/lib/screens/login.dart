@@ -15,6 +15,10 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _email = TextEditingController();
   final _password = TextEditingController();
+  final _name = TextEditingController();
+  final _branch = TextEditingController();
+  final _division = TextEditingController();
+  bool _creating = false;
   final _form = GlobalKey<FormState>();
   bool _busy = false;
   String? _error;
@@ -23,6 +27,9 @@ class _LoginScreenState extends State<LoginScreen> {
   void dispose() {
     _email.dispose();
     _password.dispose();
+    _name.dispose();
+    _branch.dispose();
+    _division.dispose();
     super.dispose();
   }
 
@@ -33,16 +40,33 @@ class _LoginScreenState extends State<LoginScreen> {
       _error = null;
     });
     try {
-      await widget.api.login(_email.text, _password.text);
+      if (_creating) {
+        await widget.api.register(
+          email: _email.text.trim(),
+          password: _password.text,
+          name: _name.text.trim(),
+          branch: _branch.text.trim(),
+          division: _division.text.trim(),
+        );
+      } else {
+        await widget.api.login(_email.text, _password.text);
+      }
       final me = await widget.api.me();
       await widget.onLoggedIn(me);
     } on ApiException catch (e) {
-      setState(() => _error = e.isAuth ? 'Wrong email or password' : 'Server said ${e.status}');
+      setState(() => _error = _friendly(e));
     } catch (_) {
       setState(() => _error = 'Could not reach Recruit. Check your connection.');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  String _friendly(ApiException e) {
+    if (e.isAuth) return 'Wrong email or password';
+    // The server returns readable messages for register failures (domain, dup).
+    final body = e.body.replaceAll(RegExp(r'^\{"detail":"?|"?\}$'), '');
+    return body.length > 3 && body.length < 120 ? body : 'Server said ${e.status}';
   }
 
   @override
@@ -90,6 +114,33 @@ class _LoginScreenState extends State<LoginScreen> {
                     validator: (v) => (v == null || v.isEmpty) ? 'Enter your password' : null,
                     onFieldSubmitted: (_) => _submit(),
                   ),
+                  if (_creating) ...[
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _name,
+                      decoration: const InputDecoration(
+                        labelText: 'Name',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _branch,
+                      textCapitalization: TextCapitalization.characters,
+                      decoration: const InputDecoration(
+                        labelText: 'Branch (AIML, CSE, IT…)',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _division,
+                      decoration: const InputDecoration(
+                        labelText: 'Division (bt / mba)',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 20),
                   FilledButton(
                     onPressed: _busy ? null : _submit,
@@ -98,7 +149,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: _busy
                           ? const SizedBox(
                               height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Text('Log in'),
+                          : Text(_creating ? 'Create account' : 'Log in'),
                     ),
                   ),
                   if (_error != null) ...[
@@ -107,6 +158,18 @@ class _LoginScreenState extends State<LoginScreen> {
                         textAlign: TextAlign.center,
                         style: TextStyle(color: Theme.of(context).colorScheme.error)),
                   ],
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: _busy
+                        ? null
+                        : () => setState(() {
+                              _creating = !_creating;
+                              _error = null;
+                            }),
+                    child: Text(_creating
+                        ? 'Have an account? Log in'
+                        : 'New here? Create an account'),
+                  ),
                 ],
               ),
             ),

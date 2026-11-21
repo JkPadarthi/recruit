@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../api.dart';
 import '../models.dart';
 import '../theme.dart';
+import 'admin.dart';
 import 'profile.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -27,6 +28,25 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _tab = 0;
   final _unread = ValueNotifier<int>(0);
+
+  bool get _isAdmin => widget.me['admin'] == true;
+
+  List<Widget> _tabs() => [
+        HitsTab(api: widget.api, unread: _unread),
+        FeedTab(api: widget.api),
+        ProfileTab(api: widget.api, me: widget.me, onSignOut: widget.onSignOut),
+        if (_isAdmin)
+          AdminScreen(api: widget.api,
+              myUserId: (widget.me['id'] as num?)?.toInt() ?? 0),
+      ];
+
+  List<NavigationDestination> _destinations() => [
+        const NavigationDestination(icon: Icon(Icons.checklist_rounded), label: 'Hits'),
+        const NavigationDestination(icon: Icon(Icons.article_outlined), label: 'Feed'),
+        const NavigationDestination(icon: Icon(Icons.person_outline), label: 'Profile'),
+        if (_isAdmin)
+          const NavigationDestination(icon: Icon(Icons.shield_outlined), label: 'Admin'),
+      ];
 
   @override
   void dispose() {
@@ -64,22 +84,11 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      body: IndexedStack(
-        index: _tab,
-        children: [
-          HitsTab(api: widget.api, unread: _unread),
-          FeedTab(api: widget.api),
-          ProfileTab(api: widget.api, me: widget.me, onSignOut: widget.onSignOut),
-        ],
-      ),
+      body: IndexedStack(index: _tab, children: _tabs()),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _tab,
         onDestinationSelected: (i) => setState(() => _tab = i),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.checklist_rounded), label: 'Hits'),
-          NavigationDestination(icon: Icon(Icons.article_outlined), label: 'Feed'),
-          NavigationDestination(icon: Icon(Icons.person_outline), label: 'Profile'),
-        ],
+        destinations: _destinations(),
       ),
     );
   }

@@ -439,7 +439,13 @@ def admin_stats(request: Request):
 
 @app.post("/api/admin/test-push")
 def admin_test_push(body: TestPushIn, request: Request):
-    """Send a test notification to every live device of ONE user (admin only)."""
+    """Send a test notification to every live device of ONE user (admin only).
+
+    Both transports, deliberately: this used to report only the Web Push half,
+    so on a phone with no browser subscription it answered "sent: 0, declined: 1"
+    while the native app was perfectly reachable. An operator diagnostic that
+    lies is worse than none.
+    """
     with db.session() as s:
         _current_admin(request, s)
         subs = s.execute(select(PushSubscription).where(
@@ -452,8 +458,20 @@ def admin_test_push(body: TestPushIn, request: Request):
                 sent += 1
             else:
                 dead += 1
+
+        from . import fcm
+        native = {"sent": 0, "failed": 0, "pruned": 0}
+        if fcm.enabled():
+            native = fcm.send(s, {body.user_id: {
+                "title": body.title,
+                "body": body.body,
+                "tag": f"recruit-admin-{body.user_id}",
+                "url": "/dashboard#hits",
+                "event": body.title,
+                "when_iso": "",
+            }})
         return {"user_id": body.user_id, "live_devices": len(subs),
-                "sent": sent, "declined": dead}
+                "sent": sent, "declined": dead, "native": native}
 
 
 # ---- push subscription ------------------------------------------------------

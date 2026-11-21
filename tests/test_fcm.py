@@ -103,3 +103,36 @@ async def test_unregister_removes_only_this_token(client, register):
     with module_db.session() as s:
         left = [x.token for x in s.execute(select(FcmToken)).scalars().all()]
     assert left == ["t2"]
+
+
+async def test_admin_test_push_reports_both_transports(client, register, monkeypatch):
+    """An operator diagnostic must not claim 'sent: 0' while the app is reachable."""
+    import app.fcm as fcm_mod
+    from app.main import db as module_db
+    from app.models import User
+    from sqlalchemy import select
+
+    await register(email="admin@vit.ac.in")
+    with module_db.session() as s:
+        u = s.execute(select(User).where(User.email == "admin@vit.ac.in")).scalar_one()
+        u.is_admin = True
+        s.commit()
+        admin_id = u.id
+
+    captured = {}
+    monkeypatch.setattr(fcm_mod, "enabled", lambda: True)
+    monkeypatch.setattr(fcm_mod, "send", lambda db, per_user: captured.update(per_user) or
+                        {"sent": 1, "failed": 0, "pruned": 0})
+
+    r = await client.post("/api/admin/test-push",
+                          json={"user_id": admin_id, "title": "t", "body": "b"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["native"]["sent"] == 1
+    assert captured and body["user_id"] in captured
+
+
+async def test_admin_endpoints_reject_non_admins(client, register):
+    await register(email="student@vit.ac.in")
+    assert (await client.get("/api/admin/stats")).status_code == 403
+    assert (await client.post("/api/admin/poll")).status_code == 403

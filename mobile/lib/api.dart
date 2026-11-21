@@ -36,6 +36,10 @@ class ApiClient {
   }
 
   Future<void> logout() async {
+    // Best effort: tell the server to drop its cookie, then clear locally.
+    try {
+      await _post('/api/logout', const {});
+    } catch (_) {}
     _cookie = null;
     final sp = await SharedPreferences.getInstance();
     await sp.remove(_cookieKey);
@@ -50,6 +54,21 @@ class ApiClient {
   Future<dynamic> _get(String path) async {
     final r = await _http
         .get(Uri.parse('$_base$path'), headers: _headers())
+        .timeout(const Duration(seconds: 20));
+    return _decode(r);
+  }
+
+  Future<dynamic> _put(String path, Map<String, dynamic> body) async {
+    final r = await _http
+        .put(Uri.parse('$_base$path'),
+            headers: _headers(json: true), body: jsonEncode(body))
+        .timeout(const Duration(seconds: 20));
+    return _decode(r);
+  }
+
+  Future<dynamic> _delete(String path) async {
+    final r = await _http
+        .delete(Uri.parse('$_base$path'), headers: _headers())
         .timeout(const Duration(seconds: 20));
     return _decode(r);
   }
@@ -116,6 +135,61 @@ class ApiClient {
     final r = await _post('/api/push/fcm', {'token': token, 'platform': 'android'});
     return r != null;
   }
+
+  // ------------------------------------------------------------ account
+  Future<Map<String, dynamic>> register({
+    required String email,
+    required String password,
+    String name = '',
+    String branch = '',
+    String division = '',
+  }) async {
+    final r = await _http.post(
+      Uri.parse('$_base/api/register'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'email': email,
+        'password': password,
+        'name': name,
+        'branch': branch,
+        'division': division,
+      }),
+    ).timeout(const Duration(seconds: 20));
+    if (r.statusCode >= 400) throw ApiException(r.statusCode, r.body);
+    await _saveCookie(r.headers['set-cookie']);
+    return jsonDecode(r.body) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> updateProfile({
+    String? name,
+    String? branch,
+    String? division,
+  }) async {
+    final body = <String, dynamic>{
+      'name': ?name,
+      'branch': ?branch,
+      'division': ?division,
+    };
+    return (await _put('/api/me/profile', body)) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> deleteId(String normalizedId) async =>
+      (await _delete('/api/me/ids/$normalizedId')) as Map<String, dynamic>;
+
+  // ------------------------------------------------------------- admin
+  Future<Map<String, dynamic>> adminStats() async =>
+      (await _get('/api/admin/stats')) as Map<String, dynamic>;
+
+  Future<Map<String, dynamic>> adminPoll() async =>
+      ((await _post('/api/admin/poll', const {})) as Map<String, dynamic>?) ?? const {};
+
+  Future<Map<String, dynamic>> adminTestPush(int userId) async =>
+      ((await _post('/api/admin/test-push', {
+        'user_id': userId,
+        'title': 'Test from the app',
+        'body': 'Sent by an admin from the Recruit client',
+      })) as Map<String, dynamic>?) ??
+      const {};
 
   void close() => _http.close();
 }
