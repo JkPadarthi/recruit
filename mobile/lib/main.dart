@@ -2,6 +2,8 @@ import 'package:material_ui/material_ui.dart';
 
 import 'api.dart';
 import 'notify.dart';
+import 'onboarding.dart';
+import 'perms.dart';
 import 'push.dart';
 import 'theme.dart';
 import 'screens/home.dart';
@@ -30,7 +32,7 @@ class RecruitApp extends StatelessWidget {
   }
 }
 
-enum _Phase { loading, login, ready }
+enum _Phase { loading, login, onboarding, ready }
 
 /// Login vs dashboard, decided by asking the server who we are. The session
 /// cookie is persisted, so this is usually a silent, instant check.
@@ -61,9 +63,11 @@ class _RootState extends State<Root> {
     try {
       final me = await _api.me();
       if (!mounted) return;
+      final onboarded = await Perms.isOnboarded();
+      if (!mounted) return;
       setState(() {
         _me = me;
-        _phase = _Phase.ready;
+        _phase = onboarded ? _Phase.ready : _Phase.onboarding;
       });
       // Firebase, FCM token, and the alarm-arming listeners. No-op until a
       // Firebase project exists.
@@ -77,9 +81,11 @@ class _RootState extends State<Root> {
   }
 
   Future<void> _onLoggedIn(Map<String, dynamic> me) async {
+    final onboarded = await Perms.isOnboarded();
+    if (!mounted) return;
     setState(() {
       _me = me;
-      _phase = _Phase.ready;
+      _phase = onboarded ? _Phase.ready : _Phase.onboarding;
     });
     // Now there is a session cookie, so the device token has an owner.
     await Push.instance.start(_api);
@@ -102,6 +108,12 @@ class _RootState extends State<Root> {
         return const Scaffold(body: Center(child: CircularProgressIndicator()));
       case _Phase.login:
         return LoginScreen(api: _api, onLoggedIn: _onLoggedIn);
+      case _Phase.onboarding:
+        return OnboardingScreen(
+          onDone: () async {
+            if (mounted) setState(() => _phase = _Phase.ready);
+          },
+        );
       case _Phase.ready:
         return HomeScreen(api: _api, me: _me ?? const {}, onSignOut: _signOut);
     }

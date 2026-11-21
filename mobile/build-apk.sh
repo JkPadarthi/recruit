@@ -23,6 +23,7 @@ tar czf - -C "$HERE/.." \
   mobile/android/settings.gradle.kts mobile/android/build.gradle.kts \
   mobile/android/app/build.gradle.kts mobile/android/app/google-services.json \
   mobile/android/app/src/main/AndroidManifest.xml \
+  mobile/android/app/src/main/kotlin \
   | ssh "$HOST" "tar xzf - -C ~/$REMOTE --strip-components=1"
 
 if [ "$MODE" = "--debug" ]; then

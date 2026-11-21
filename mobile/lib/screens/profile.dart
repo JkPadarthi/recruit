@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../api.dart';
 import '../notify.dart';
+import '../perms.dart';
 import '../theme.dart';
 
 class ProfileTab extends StatefulWidget {
@@ -26,6 +27,18 @@ class _ProfileTabState extends State<ProfileTab> {
   late Map<String, dynamic> _me = Map<String, dynamic>.from(widget.me);
   bool _busy = false;
   String? _note;
+  ({bool notifications, bool exact, bool battery})? _perms;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPerms();
+  }
+
+  Future<void> _loadPerms() async {
+    final p = await Perms.snapshot();
+    if (mounted) setState(() => _perms = p);
+  }
 
   @override
   void dispose() {
@@ -221,6 +234,23 @@ class _ProfileTabState extends State<ProfileTab> {
                     child: Text(_note!, style: R.small),
                   ),
                 ],
+                const SizedBox(height: 18),
+                _section('Notifications & alarms'),
+                Container(
+                  decoration: R.card(),
+                  child: Column(
+                    children: [
+                      _permRow('Notifications', _perms?.notifications,
+                          Perms.requestNotifications),
+                      const Divider(),
+                      _permRow('Alarms & reminders', _perms?.exact,
+                          Perms.openExactAlarmSettings),
+                      const Divider(),
+                      _permRow('Battery unrestricted', _perms?.battery,
+                          Perms.requestBatteryExemption),
+                    ],
+                  ),
+                ),
                 // Everything below is a developer affordance: harmless in a debug
                 // build, noise in a release one. kDebugMode strips it from release.
                 if (kDebugMode) ...[
@@ -251,6 +281,30 @@ class _ProfileTabState extends State<ProfileTab> {
       ],
     );
   }
+
+  /// One permission, its live state, and a tap to go and fix it.
+  Widget _permRow(String label, bool? ok, Future<void> Function() fix) => InkWell(
+        onTap: () async {
+          await fix();
+          await _loadPerms();
+        },
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(13, 11, 13, 11),
+          child: Row(
+            children: [
+              Icon(
+                ok == true ? Icons.check_circle_rounded : Icons.error_outline_rounded,
+                size: 16,
+                color: ok == true ? R.saffron : R.ink3,
+              ),
+              const SizedBox(width: 10),
+              Expanded(child: Text(label, style: R.small.copyWith(color: R.ink))),
+              Text(ok == true ? 'on' : 'off', style: R.meta),
+              const Icon(Icons.chevron_right_rounded, size: 17, color: R.ink3),
+            ],
+          ),
+        ),
+      );
 
   Widget _section(String text) => Padding(
         padding: const EdgeInsets.only(bottom: 8, left: 2),
