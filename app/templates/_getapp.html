@@ -1,0 +1,22 @@
+{# The Android download card. Rendered only when a build has been published
+   (apk is None otherwise), so a fresh checkout never shows a dead button. #}
+{% if apk %}
+<section class="getapp" aria-labelledby="getapp-h">
+  <div class="getapp-mark" aria-hidden="true"><svg><use href="#i-phone"/></svg></div>
+  <div class="getapp-body">
+    <h2 id="getapp-h">Get the Android app</h2>
+    <p>
+      Native notifications that survive Doze, plus a reminder 90&nbsp;minutes before
+      reporting time.
+      {% if apk.version %}<span class="getapp-meta">v{{ apk.version }} · {{ apk.size_mb }} MB</span>{% endif %}
+    </p>
+  </div>
+  <a class="btn btn-primary btn-sm getapp-btn" href="/download" download>Download APK</a>
+</section>
+<p class="getapp-note">
+  Android only. On iPhone, use the browser version you are already on — and tap
+  “Add to calendar” on any hit for the reminder.
+  Chrome will ask to allow installs from this site once; that is the same prompt every
+  sideloaded app triggers.
+</p>
+{% endif %}

@@ -42,6 +42,8 @@ app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 
 from .web import router as web_router  # noqa: E402
 app.include_router(web_router)
+from .apk import router as apk_router  # noqa: E402
+app.include_router(apk_router)
 
 
 def _current_user(request: Request, s: Session) -> User:

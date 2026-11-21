@@ -81,4 +81,14 @@ NAMED="$HOME/Downloads/recruit-v${VERSION}.apk"
 cp -f "$HOME/Downloads/$LOCAL" "$NAMED"
 ls -lh "$NAMED"
 
+# Publish to the site so Android users can install from the web app itself, without a
+# Telegram hand-off. A failure here must be loud but must not throw away a good build —
+# the site keeps serving the previous APK until a publish succeeds.
+if [ "${NO_PUBLISH:-0}" != "1" ]; then
+  echo "==> publishing to the download page"
+  python3 "$HERE/../scripts/publish_apk.py" "$NAMED" \
+    --notes "${APK_NOTES:-Recruit $VERSION}" \
+    || echo "!! publish FAILED — the site still serves the previous build" >&2
+fi
+
 echo "==> install: adb install -r $LOCAL   (release is signed with the debug key for now)"

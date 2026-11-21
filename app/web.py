@@ -8,6 +8,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 from .config import settings
+from .apk import apk_info
 from .security import verify_session_token
 
 TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
@@ -25,23 +26,26 @@ def _authed(request: Request) -> bool:
 def landing(request: Request):
     return templates.TemplateResponse(
         request, "landing.html",
-        {"brand": settings.brand_name, "authed": _authed(request)})
+        {"brand": settings.brand_name, "authed": _authed(request), "apk": apk_info()})
 
 
 @router.get("/login", response_class=HTMLResponse)
 def login_page(request: Request):
-    return templates.TemplateResponse(request, "login.html", {"brand": settings.brand_name})
+    return templates.TemplateResponse(
+        request, "login.html", {"brand": settings.brand_name, "apk": apk_info()})
 
 
 @router.get("/register", response_class=HTMLResponse)
 def register_page(request: Request):
-    return templates.TemplateResponse(request, "register.html", {"brand": settings.brand_name})
+    return templates.TemplateResponse(
+        request, "register.html", {"brand": settings.brand_name, "apk": apk_info()})
 
 
 @router.get("/dashboard", response_class=HTMLResponse)
 def dashboard(request: Request):
     if not _authed(request):
-        return templates.TemplateResponse(request, "login.html", {"brand": settings.brand_name})
+        return templates.TemplateResponse(
+        request, "login.html", {"brand": settings.brand_name, "apk": apk_info()})
     from app.main import _current_user, db as module_db
     is_admin = False
     try:
@@ -54,13 +58,15 @@ def dashboard(request: Request):
         {"brand": settings.brand_name,
          "vapid_public_key": settings.vapid_public_key,
          "public_base_url": settings.public_base_url,
-         "is_admin": is_admin})
+         "is_admin": is_admin,
+         "apk": apk_info()})
 
 
 @router.get("/profile", response_class=HTMLResponse)
 def profile_page(request: Request):
     if not _authed(request):
-        return templates.TemplateResponse(request, "login.html", {"brand": settings.brand_name})
+        return templates.TemplateResponse(
+        request, "login.html", {"brand": settings.brand_name, "apk": apk_info()})
     from app.main import _current_user, db as module_db
     is_admin = False
     try:
@@ -73,7 +79,8 @@ def profile_page(request: Request):
         {"brand": settings.brand_name,
          "vapid_public_key": settings.vapid_public_key,
          "public_base_url": settings.public_base_url,
-         "is_admin": is_admin})
+         "is_admin": is_admin,
+         "apk": apk_info()})
 
 
 @router.get("/sw.js")

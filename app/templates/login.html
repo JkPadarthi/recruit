@@ -1,5 +1,6 @@
 {% extends "base.html" %}
-{% block bodyclass %}auth-page{% endblock %}
+{% block bodyclass %}auth-page{% include "_getapp.html" %}
+{% endblock %}
 {% block title %} · Log in{% endblock %}
 {% block content %}
 <main class="auth">
