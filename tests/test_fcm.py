@@ -136,3 +136,26 @@ async def test_admin_endpoints_reject_non_admins(client, register):
     await register(email="student@vit.ac.in")
     assert (await client.get("/api/admin/stats")).status_code == 403
     assert (await client.post("/api/admin/poll")).status_code == 403
+
+
+
+def test_styling_only_appears_in_the_android_block():
+    """message.notification takes title/body only.
+
+    Putting icon/color there makes FCM reject the whole message with
+    'Invalid JSON payload received. Unknown name "icon" at message.notification',
+    and the push silently never ships.
+    """
+    from app.fcm import build_payload
+
+    payload = build_payload("tok", {"title": "HCL Tech", "body": "2:30 pm - PRP 713",
+                                    "tag": "recruit-983", "url": "/dashboard#hits"})
+    common = payload["message"]["notification"]
+    android = payload["message"]["android"]["notification"]
+
+    assert set(common) == {"title", "body"}, common
+    assert android["icon"] == "ic_stat_recruit"
+    assert android["color"] == "#F4B33D"
+    assert android["channel_id"] == "recruit_updates"
+    assert android["notification_priority"] == "PRIORITY_HIGH"
+    assert android["tag"] == "recruit-983"

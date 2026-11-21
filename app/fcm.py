@@ -162,6 +162,39 @@ def _drop(db: Session, token: str) -> None:
 
 
 # ----------------------------------------------------------------------- sender
+def build_payload(token: str, data: dict[str, str]) -> dict:
+    """The FCM message for ONE device.
+
+    Split out from send() so the shape can be asserted in a test without a
+    database or a network call — `message.notification` accepts only
+    title/body/image, and getting that wrong makes FCM 400 the whole message.
+    """
+    return {
+        "message": {
+            "token": token,
+            "notification": {
+                "title": str(data.get("title", "Recruit")),
+                "body": str(data.get("body", "")),
+            },
+            "data": data,
+            "android": {
+                "priority": "HIGH",
+                "ttl": "3600s",
+                "notification": {
+                    "channel_id": "recruit_updates",
+                    "tag": str(data.get("tag", "recruit")),
+                    "icon": "ic_stat_recruit",
+                    "color": "#F4B33D",
+                    "ticker": str(data.get("title", "Shortlist")),
+                    "notification_priority": "PRIORITY_HIGH",
+                    "visibility": "PUBLIC",
+                    "notification_count": 1,
+                },
+            },
+        }
+    }
+
+
 def send(db: Session, per_user: dict[int, dict[str, str]]) -> dict[str, int]:
     """per_user: {user_id: {title, body, tag, url, when_iso, venue, event}}
 
@@ -188,37 +221,7 @@ def send(db: Session, per_user: dict[int, dict[str, str]]) -> dict[str, int]:
             #  - `data` is what the app needs to schedule the local deadline alarm.
             # Data-only would make display depend on our code being scheduled;
             # notification-only would carry no payload for the alarm.
-            payload: dict = {
-                "message": {
-                    "token": token,
-                    "notification": {
-                        "title": str(message_data.get("title", "Recruit")),
-                        "body": str(message_data.get("body", "")),
-                        # Monochrome drawable, NOT the launcher icon: Android paints
-                        # small icons as a white silhouette, so the coloured tile
-                        # icon would show up as a featureless white square.
-                        "icon": "ic_stat_recruit",
-                        "color": "#F4B33D",
-                    },
-                    "data": message_data,
-                    "android": {
-                        "priority": "HIGH",
-                        "ttl": "3600s",
-                        "notification": {
-                            "channel_id": "recruit_updates",
-                            "tag": str(message_data.get("tag", "recruit")),
-                            "icon": "ic_stat_recruit",
-                            "color": "#F4B33D",
-                            "ticker": str(message_data.get("title", "Shortlist")),
-                            "notification_priority": "PRIORITY_HIGH",
-                            "visibility": "PUBLIC",
-                            # One line in the shade, and Android groups repeat pushes
-                            # under the same tag instead of stacking duplicates.
-                            "notification_count": 1,
-                        },
-                    },
-                }
-            }
+            payload = build_payload(token, message_data)
             body = json.dumps(payload).encode()
             req = urllib.request.Request(
                 _SEND_URI.format(project=project), data=body,
