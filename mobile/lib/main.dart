@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import 'api.dart';
 import 'notify.dart';
 import 'push.dart';
+import 'theme.dart';
 import 'screens/home.dart';
 import 'screens/login.dart';
 
@@ -23,14 +24,7 @@ class RecruitApp extends StatelessWidget {
     return MaterialApp(
       title: 'Recruit',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF6C8CFF),
-          brightness: Brightness.dark,
-        ),
-        scaffoldBackgroundColor: const Color(0xFF0F1115),
-      ),
+      theme: buildTheme(),
       home: const Root(),
     );
   }

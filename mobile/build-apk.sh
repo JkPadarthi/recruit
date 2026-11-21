@@ -19,7 +19,7 @@ echo "==> syncing Dart + Android config to $HOST:~/$REMOTE"
 # with --strip-components=1 silently turns android/settings.gradle.kts into
 # settings.gradle.kts at the root, which changes nothing and looks like success.
 tar czf - -C "$HERE/.." \
-  mobile/lib mobile/pubspec.yaml mobile/pubspec.lock \
+  mobile/lib mobile/assets mobile/pubspec.yaml mobile/pubspec.lock \
   mobile/android/settings.gradle.kts mobile/android/build.gradle.kts \
   mobile/android/app/build.gradle.kts mobile/android/app/google-services.json \
   mobile/android/app/src/main/AndroidManifest.xml \

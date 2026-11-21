@@ -86,9 +86,20 @@ class ApiClient {
   Future<Map<String, dynamic>> me() async =>
       (await _get('/api/me')) as Map<String, dynamic>;
 
-  Future<List<dynamic>> hits() async {
+  Future<List<dynamic>> hits() async => (await hitsFeed()).hits;
+
+  /// The list endpoint also returns an unread count; the app needs both.
+  Future<({List<dynamic> hits, int unread})> hitsFeed() async {
     final j = await _get('/api/hits') as Map<String, dynamic>;
-    return (j['hits'] as List<dynamic>?) ?? const [];
+    return (
+      hits: (j['hits'] as List<dynamic>?) ?? const [],
+      unread: (j['unread'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  /// Opening a hit clears its dot. Idempotent server-side.
+  Future<void> markRead(int hitId) async {
+    await _post('/api/hits/$hitId/read', const {});
   }
 
   Future<List<dynamic>> mails({int limit = 50}) async {

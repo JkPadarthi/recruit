@@ -1,5 +1,5 @@
-// Typed views of the API payloads. Every field is defensive: the server has
-// shipped this shape for months, but a missing key must never crash a list.
+// Typed views of the API payloads. Every field is defensive: a missing key must
+// never crash a list.
 
 class Hit {
   Hit({
@@ -22,7 +22,7 @@ class Hit {
   final String subject;
   final String kind;
   final String company;
-  final String slot;             // the student's own sheet row
+  final String slot; // the student's own sheet row
   final Map<String, dynamic>? summary;
   final String? registerId;
 
@@ -41,8 +41,7 @@ class Hit {
         registerId: j['normalized_id'] as String?,
       );
 
-  /// "ApplicationNo.: HCLTFP2461546 · Skill Stack: ... · Date & Time: ..."
-  /// The card shows the pieces, not the raw row.
+  /// "ApplicationNo.: HCLTFP2461546 · Skill Stack: … · Venue: …" -> pairs.
   List<MapEntry<String, String>> get slotParts {
     final out = <MapEntry<String, String>>[];
     for (final seg in slot.split('·')) {
@@ -58,17 +57,33 @@ class Hit {
     return out;
   }
 
-  String get dateLine => _pick('date');
-  String get venueLine => _pick('venue');
+  static final _dateRe = RegExp(r'\b\d{1,2}-\d{1,2}-\d{4}\b');
+  static final _timeRe =
+      RegExp(r'\b\d{1,2}[.:]\d{2}\s*[ap]\.?\s*m\b', caseSensitive: false);
+  static final _venueRe =
+      RegExp(r'(?:Reporting venue|Venue|Location)\s*:\s*([^\u00b7]+)', caseSensitive: false);
+  static final _roomRe = RegExp(r'\b(?:PRP|TT|MB|SJT|GDN|SMV|AN)\s?-?\s?\d{2,4}\b');
 
-  /// First value whose label contains [needle]; '' when absent.
-  /// (Dart core has no firstOrNull and this does not justify a package.)
-  String _pick(String needle) {
-    for (final e in slotParts) {
-      if (e.key.toLowerCase().contains(needle)) return e.value;
-    }
-    return '';
+  /// The date, matched by SHAPE rather than by position.
+  ///
+  /// An Accenture row carries no "Date & Time" label, and picking the first
+  /// labelled segment put an application number on screen where the date
+  /// belonged ("26247961"). A value is only a date if it looks like one.
+  String get dateLine {
+    final d = _dateRe.firstMatch(slot)?.group(0);
+    if (d == null) return '';
+    final t = _timeRe.firstMatch(slot)?.group(0);
+    return t == null ? d : '$d (${t.replaceAll('.', ':')})';
   }
+
+  String get venueLine {
+    final labelled = _venueRe.firstMatch(slot)?.group(1)?.trim();
+    if (labelled != null && labelled.isNotEmpty) return labelled;
+    return _roomRe.firstMatch(slot)?.group(0) ?? '';
+  }
+
+  /// The LLM's prose summary — the same string the PWA renders under the subject.
+  String get summaryProse => '${summary?['summary'] ?? ''}'.trim();
 }
 
 class Mail {
@@ -110,18 +125,61 @@ class Mail {
         summaryStatus: '${j['summary_status'] ?? ''}',
       );
 
-  /// The summary paragraph for the feed card, or '' when there isn't one yet.
-  String get summaryText {
+  /// Prose first (what the PWA shows), structured fields only as a fallback.
+  String get summaryProse {
+    final prose = '${summary?['summary'] ?? ''}'.trim();
+    if (prose.isNotEmpty) return prose;
     final s = summary;
     if (s == null) return '';
     final cat = '${s['category'] ?? ''}'.trim();
     final role = '${s['role'] ?? ''}'.trim();
     final pkg = '${s['package'] ?? ''}'.trim();
-    final parts = [if (cat.isNotEmpty) cat, if (role.isNotEmpty) role, if (pkg.isNotEmpty) pkg];
-    return parts.join(' · ');
+    return [cat, role, pkg].where((e) => e.isNotEmpty).join(' · ');
   }
 
   /// This user's own rows from the sheet, one per code they hold.
   List<MapEntry<String, String>> get mySlotList =>
       mySlots.entries.map((e) => MapEntry(e.key, '${e.value}')).toList();
+
+  /// Tappable links from the mail — a test URL or a registration form. Without
+  /// these, a "🧪 Test link available" push leads nowhere inside the app.
+  List<MailLink> get linkList {
+    final out = <MailLink>[];
+    for (final raw in links) {
+      final url = '$raw'.trim();
+      if (url.isEmpty || !url.startsWith('http')) continue;
+      out.add(MailLink(url));
+    }
+    return out;
+  }
+}
+
+/// A link found in a CDC mail, with a human label derived from its URL.
+class MailLink {
+  MailLink(this.url);
+
+  final String url;
+
+  String get host {
+    final u = Uri.tryParse(url);
+    return u?.host ?? url;
+  }
+
+  /// "test", "register" or "open" — the same vocabulary the server uses.
+  String get kind {
+    final low = url.toLowerCase();
+    if (low.contains('test') || low.contains('exam') || low.contains('assess')) {
+      return 'test';
+    }
+    if (low.contains('regist') || low.contains('form') || low.contains('apply')) {
+      return 'register';
+    }
+    return 'open';
+  }
+
+  String get label => switch (kind) {
+        'test' => 'Open test link',
+        'register' => 'Register',
+        _ => 'Open link',
+      };
 }
