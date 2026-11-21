@@ -151,7 +151,10 @@ def process_message(raw: bytes, msg_uid: str, db: Session, folder: str = "INBOX"
         MAILS_DUPLICATE.inc()
         return "duplicate"
 
-    subject = _dec(msg.get("Subject", ""))[:_HEADER_CUT]
+    # VIT subjects are folded across header lines ("...by 2.15\r\n PM @ PRP").
+    # Collapse at the source: a raw CRLF inside the subject breaks push bodies
+    # and feed cards, and this is the only writer.
+    subject = re.sub(r"\s+", " ", _dec(msg.get("Subject", ""))).strip()[:_HEADER_CUT]
     date = _dec(msg.get("Date", ""))[:80]
     body = _body_text(msg)
     sheet_ids, sheet_slots, has_attach = _spreadsheet_from_msg(msg)

@@ -191,3 +191,40 @@ async def test_push_body_without_row_context_is_unchanged(client, register, monk
         process_message(raw, "9005", s)
     assert len(sent) == 1
     assert "📍" not in sent[0]["body"]
+
+
+# ---- folded header regression ----------------------------------------------
+FOLDED = (b"HCL Tech Online Test Is Scheduled on 23-11-2026 & 24-11-2026 by 2.15\r\n"
+          b" PM @ PRP\r\n")
+
+
+async def test_folded_subject_is_collapsed_and_push_stays_one_line(client, register, monkeypatch):
+    """VIT folds long subjects; a raw CRLF inside the push body looked broken."""
+    from sqlalchemy import select
+    from app.main import db as module_db
+    from app.ingest import process_message
+    from app.models import Ingested
+
+    await register()
+    await client.post("/api/me/ids", json={"register_id": "K3I6O4I8"})
+    await client.post("/api/push/subscribe",
+                      json={"endpoint": "https://fcm.googleapis.com/fcm/send/FOLD", "platform": "web"})
+    import app.push as push_mod
+    sent: list[dict] = []
+    monkeypatch.setattr(push_mod, "vapid_enabled", lambda: True)
+    monkeypatch.setattr(push_mod, "send_to_subscription", lambda sub, payload: sent.append(payload) or True)
+
+    raw = (b"From: " + CDC_FROM.encode() + b"\r\nSubject: " + FOLDED + b"\r\n"
+           + b"Shortlist: K3I6O4I8\r\n")
+    with module_db.session() as s:
+        process_message(raw, "9100", s)
+
+    with module_db.session() as s:
+        ing = s.execute(select(Ingested)).scalars().one()
+        assert "\r" not in ing.subject and "\n" not in ing.subject
+        assert ing.subject.endswith("2.15 PM @ PRP")
+
+    assert len(sent) == 1
+    body = sent[0]["body"]
+    assert "\r" not in body
+    assert body.split("\n")[0].endswith("2.15 PM @ PRP")   # subject is exactly one line

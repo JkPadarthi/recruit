@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import time
 from pathlib import Path
 
@@ -182,7 +183,8 @@ def notify_targeted(db: Session, ingest, matched_user_ids: set[int], has_ids: bo
     if not target:
         return
 
-    subject = ingest.subject or "a placement update"
+    # Defensive: rows ingested before the CRLF fix still carry folded subjects.
+    subject = re.sub(r"\s+", " ", ingest.subject or "").strip() or "a placement update"
     has_link = bool(links)
     link_line = "\n🔗 has an attached link — open the feed" if has_link else ""
     body = f"{subject}{link_line}"
