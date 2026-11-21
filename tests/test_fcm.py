@@ -1,3 +1,5 @@
+import pytest
+
 """Native push: the deadline a phone can actually keep.
 
 Two things are asserted here that matter more than the HTTP plumbing:
@@ -159,3 +161,57 @@ def test_styling_only_appears_in_the_android_block():
     assert android["channel_id"] == "recruit_updates"
     assert android["notification_priority"] == "PRIORITY_HIGH"
     assert android["tag"] == "recruit-983"
+
+
+@pytest.fixture()
+def db_tokens_mixed():
+    """Two tokens for one user, one per platform, in a throwaway session."""
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    from app.db import Base
+    from app.models import FcmToken, User
+
+    engine = create_engine("sqlite://")
+    Base.metadata.create_all(engine)
+    s = sessionmaker(bind=engine)()
+    u = User(email="mix@vit.ac.in", password_hash="x", name="Mix", branch="AIML",
+             division="bt")
+    s.add(u)
+    s.commit()
+    s.add_all([
+        FcmToken(user_id=u.id, token="a-token", platform="android"),
+        FcmToken(user_id=u.id, token="i-token", platform="ios"),
+    ])
+    s.commit()
+    yield s
+    s.close()
+
+
+def test_ios_gets_apns_and_no_android_block():
+    """The two platform blocks are mutually exclusive: FCM rejects a message
+    carrying the other platform's config, so only one may be emitted."""
+    from app.fcm import build_payload
+
+    data = {"title": "HCL Tech", "body": "2:30 pm - PRP 713", "tag": "recruit-983"}
+    ios = build_payload("tok", data, "ios")["message"]
+    android = build_payload("tok", data, "android")["message"]
+
+    assert "android" not in ios and "apns" in ios
+    assert "apns" not in android and "android" in android
+
+    headers = ios["apns"]["headers"]
+    assert headers["apns-priority"] == "10"
+    assert headers["apns-push-type"] == "alert"
+    aps = ios["apns"]["payload"]["aps"]
+    assert aps["alert"] == {"title": "HCL Tech", "body": "2:30 pm - PRP 713"}
+    assert aps["interruption-level"] == "time-sensitive"
+    assert aps["thread-id"] == "recruit-983"
+
+
+def test_tokens_carry_their_platform(db_tokens_mixed):
+    """An Android token and an iOS token must not receive the same payload shape."""
+    from app.fcm import tokens_for
+
+    got = tokens_for(db_tokens_mixed, [1])
+    assert sorted(got[1]) == [("a-token", "android"), ("i-token", "ios")]

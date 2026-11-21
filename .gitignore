@@ -19,3 +19,8 @@ secrets/
 *.md
 !README.md
 !CONTRIBUTING.md
+
+# Apple/Firebase secrets: the .p8 signing keys never belong in git, and the iOS
+# Firebase plist is project config that each checkout fetches from the console.
+*.p8
+mobile/ios/Runner/GoogleService-Info.plist

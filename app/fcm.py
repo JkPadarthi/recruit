@@ -146,13 +146,19 @@ def register(db: Session, user_id: int, token: str, platform: str = "android") -
     return True
 
 
-def tokens_for(db: Session, user_ids: Iterable[int]) -> dict[int, list[str]]:
+def tokens_for(db: Session, user_ids: Iterable[int]) -> dict[int, list[tuple[str, str]]]:
+    """{user_id: [(token, platform), ...]}
+
+    The platform travels with the token: an Android message must carry an
+    `android` block, an iOS one an `apns` block, and FCM rejects a payload with
+    the wrong one attached.
+    """
     ids = list(user_ids)
     if not ids:
         return {}
-    out: dict[int, list[str]] = {}
+    out: dict[int, list[tuple[str, str]]] = {}
     for row in db.execute(select(FcmToken).where(FcmToken.user_id.in_(ids))).scalars():
-        out.setdefault(row.user_id, []).append(row.token)
+        out.setdefault(row.user_id, []).append((row.token, (row.platform or "android").lower()))
     return out
 
 
@@ -162,37 +168,57 @@ def _drop(db: Session, token: str) -> None:
 
 
 # ----------------------------------------------------------------------- sender
-def build_payload(token: str, data: dict[str, str]) -> dict:
+def build_payload(token: str, data: dict[str, str], platform: str = "android") -> dict:
     """The FCM message for ONE device.
 
     Split out from send() so the shape can be asserted in a test without a
     database or a network call — `message.notification` accepts only
     title/body/image, and getting that wrong makes FCM 400 the whole message.
+
+    The `android` and `apns` blocks are mutually exclusive per token: FCM rejects
+    a message carrying the wrong platform's config, so only one is emitted.
     """
-    return {
-        "message": {
-            "token": token,
+    title = str(data.get("title", "Recruit"))
+    body = str(data.get("body", ""))
+    tag = str(data.get("tag", "recruit"))
+
+    message: dict = {
+        "token": token,
+        "notification": {"title": title, "body": body},
+        "data": data,
+    }
+
+    if platform.startswith("android"):
+        message["android"] = {
+            "priority": "HIGH",
+            "ttl": "3600s",
             "notification": {
-                "title": str(data.get("title", "Recruit")),
-                "body": str(data.get("body", "")),
-            },
-            "data": data,
-            "android": {
-                "priority": "HIGH",
-                "ttl": "3600s",
-                "notification": {
-                    "channel_id": "recruit_updates",
-                    "tag": str(data.get("tag", "recruit")),
-                    "icon": "ic_stat_recruit",
-                    "color": "#F4B33D",
-                    "ticker": str(data.get("title", "Shortlist")),
-                    "notification_priority": "PRIORITY_HIGH",
-                    "visibility": "PUBLIC",
-                    "notification_count": 1,
-                },
+                "channel_id": "recruit_updates",
+                "tag": tag,
+                "icon": "ic_stat_recruit",
+                "color": "#F4B33D",
+                "ticker": title,
+                "notification_priority": "PRIORITY_HIGH",
+                "visibility": "PUBLIC",
+                "notification_count": 1,
             },
         }
-    }
+    else:
+        # iOS. apns-push-type alert + priority 10 so it arrives like a message, not
+        # a background refresh; time-sensitive lets it break through Focus/Do Not
+        # Disturb the way a placement deadline should.
+        message["apns"] = {
+            "headers": {"apns-priority": "10", "apns-push-type": "alert"},
+            "payload": {
+                "aps": {
+                    "alert": {"title": title, "body": body},
+                    "sound": "default",
+                    "thread-id": tag,
+                    "interruption-level": "time-sensitive",
+                }
+            },
+        }
+    return {"message": message}
 
 
 def send(db: Session, per_user: dict[int, dict[str, str]]) -> dict[str, int]:
@@ -214,14 +240,14 @@ def send(db: Session, per_user: dict[int, dict[str, str]]) -> dict[str, int]:
     by_user = tokens_for(db, per_user.keys())
     for uid, data in per_user.items():
         message_data = {k: str(v) for k, v in data.items() if v is not None and str(v) != ""}
-        for token in by_user.get(uid, []):
+        for token, platform in by_user.get(uid, []):
             # Why BOTH a notification block and data:
             #  - `notification` is rendered by Play Services itself, so the user
             #    sees it even when the app process is dead and Flutter never runs.
             #  - `data` is what the app needs to schedule the local deadline alarm.
             # Data-only would make display depend on our code being scheduled;
             # notification-only would carry no payload for the alarm.
-            payload = build_payload(token, message_data)
+            payload = build_payload(token, message_data, platform)
             body = json.dumps(payload).encode()
             req = urllib.request.Request(
                 _SEND_URI.format(project=project), data=body,

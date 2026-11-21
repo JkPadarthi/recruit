@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io' show Platform;
 
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -132,7 +133,10 @@ class ApiClient {
 
   /// Hands Play Services' token to the server. Same call the Kotlin shell made.
   Future<bool> registerFcmToken(String token) async {
-    final r = await _post('/api/push/fcm', {'token': token, 'platform': 'android'});
+    // The server picks a different payload shape per platform, so this must be
+    // truthful: an iOS token registered as "android" gets a message FCM rejects.
+    final platform = Platform.isIOS ? 'ios' : 'android';
+    final r = await _post('/api/push/fcm', {'token': token, 'platform': platform});
     return r != null;
   }
 
