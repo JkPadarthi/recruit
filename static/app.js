@@ -528,6 +528,8 @@ function renderPush(st) {
   if (row) { row.classList.toggle('is-on', st === 'on'); row.classList.toggle('is-blocked', st === 'blocked' || st === 'error'); }
   const cta = $('push-cta');
   if (cta) cta.hidden = !(st === 'off' || st === 'blocked');
+  // one place paints every push control — the Android Doze tip rides along
+  maybeShowBatteryTip(st === 'on');
 }
 
 async function togglePush(e) {
@@ -576,6 +578,26 @@ async function restorePushState() {
     if (sub) return renderPush('on');
     renderPush(Notification.permission === 'denied' ? 'blocked' : 'off');
   } catch (_) { renderPush('off'); }
+}
+
+// Android only, and only while notifications are ON: Doze holds NORMAL-priority
+// pushes until the next maintenance window (a real shortlist landed 3h34m late).
+// Dismissed once per device — localStorage, so it never nags twice.
+function maybeShowBatteryTip(pushOn) {
+  const tip = $('battery-tip');
+  if (!tip) return;
+  const isAndroid = /android/i.test(navigator.userAgent || '');
+  let dismissed = false;
+  try { dismissed = localStorage.getItem('recruit-battery-tip') === '1'; } catch (_) {}
+  tip.hidden = !(isAndroid && pushOn && !dismissed);
+  const ok = $('battery-tip-ok');
+  if (ok && !ok.dataset.wired) {
+    ok.dataset.wired = '1';
+    ok.addEventListener('click', () => {
+      try { localStorage.setItem('recruit-battery-tip', '1'); } catch (_) {}
+      tip.hidden = true;
+    });
+  }
 }
 
 // ---- admin ------------------------------------------------------------------

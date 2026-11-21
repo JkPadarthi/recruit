@@ -37,6 +37,19 @@
       <a class="btn btn-secondary btn-sm" href="#ids" data-go="ids">Add ID</a>
     </div>
 
+    <!-- Android only, once per device (app.js decides): Doze holds NORMAL-priority
+         pushes until the next maintenance window — a real shortlist arrived 3h34m
+         late that way. Exempting Chrome from battery optimisation fixes it. -->
+    <section id="battery-tip" class="callout" hidden>
+      <svg class="callout-ico" aria-hidden="true"><use href="#i-bell"/></svg>
+      <div class="callout-text">
+        <strong>Get pinged in seconds, not hours</strong>
+        <span>On Android: Chrome → Settings → Battery → <b>Unrestricted</b>. Otherwise Android's
+          Doze can hold a shortlist notification until its next maintenance window.</span>
+      </div>
+      <button class="btn btn-secondary btn-sm" type="button" id="battery-tip-ok">Got it</button>
+    </section>
+
     <div class="section-head">
       <h1 class="section-title" id="feed-title">Placement feed</h1>
       <span class="section-note">Every CDC mail for your division</span>
@@ -115,5 +128,5 @@
   window.RECRUIT_POLL_MS = 15000;
 </script>
 <script src="/static/ids.js?v=2" defer></script>
-<script src="/static/app.js?v=26" defer></script>
+<script src="/static/app.js?v=27" defer></script>
 {% endblock %}
