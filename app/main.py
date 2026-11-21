@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import logging
 from pathlib import Path
 from contextlib import asynccontextmanager
@@ -20,6 +21,12 @@ from .models import AppState, Entry, Hit, Ingested, PushSubscription, User, User
 from .security import (decode_session, hash_password, make_session_token,
                        verify_password, verify_session_token)
 from .util import normalize_id
+
+log = logging.getLogger(__name__)
+
+# Uvicorn configures its own loggers; ours inherit the root default of WARNING, which
+# swallowed every "reset mail accepted/failed" line. Reset events must leave a trace.
+logging.getLogger("app").setLevel(os.environ.get("LOG_LEVEL", "INFO").upper())
 
 log = logging.getLogger("recruit")
 
