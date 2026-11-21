@@ -23,7 +23,7 @@ ssh "$HOST" "cd ~/$REMOTE_DIR/android && echo 'sdk.dir='\$HOME/'$REMOTE_DIR/sdk'
   env JAVA_HOME=\$HOME/$REMOTE_DIR/tools/jdk17 ANDROID_HOME=\$HOME/$REMOTE_DIR/sdk \
       PATH=\$HOME/$REMOTE_DIR/tools/jdk17/bin:\$PATH \
       \$HOME/$REMOTE_DIR/tools/gradle-8.9/bin/gradle :app:assembleDebug --no-daemon --console=plain \
-  | tail -20"
+  | tail -20; exit \${PIPESTATUS[0]}"
 
 echo "==> fetching APK"
 scp -q "$HOST:~/$REMOTE_DIR/android/app/build/outputs/apk/debug/app-debug.apk" "$OUT"

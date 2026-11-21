@@ -43,6 +43,7 @@ class MainActivity : AppCompatActivity() {
 
         Notifications.ensureChannels(this)
         setUpWebView()
+        addDebugTools()
 
         if (savedInstanceState == null) {
             web.loadUrl(BuildConfig.BASE_URL + pathFrom(intent))
@@ -155,6 +156,53 @@ class MainActivity : AppCompatActivity() {
             }
             .setNegativeButton("Skip", null)
             .show()
+    }
+
+    /**
+     * DEBUG BUILDS ONLY. Two mechanisms need proving and they are independent:
+     * the push (needs Firebase) and the local alarm (needs nothing). This overlay
+     * lets the alarm be tested with one tap — no cable, no adb, no Firebase.
+     */
+    private fun addDebugTools() {
+        if (!BuildConfig.DEBUG) return
+        val root = findViewById<android.widget.FrameLayout>(R.id.root) ?: return
+        val panel = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            gravity = android.view.Gravity.END or android.view.Gravity.BOTTOM
+            setPadding(0, 0, 24, 48)
+        }
+        fun button(label: String, action: () -> Unit) {
+            panel.addView(android.widget.Button(this).apply {
+                text = label
+                textSize = 12f
+                setOnClickListener { action() }
+            })
+        }
+        button("⏱ Test alarm +1 min") {
+            // 91 minutes out, so the T-90 reminder lands in about a minute.
+            // NB: `when` is a Kotlin keyword — never name a variable after it.
+            val whenIso = java.time.OffsetDateTime.now(java.time.ZoneId.of("Asia/Kolkata"))
+                .plusMinutes(91).withSecond(0).withNano(0).toString()
+            AlarmScheduler.scheduleFor(this, "dbg-${System.currentTimeMillis()}",
+                whenIso, "DEBUG deadline", "Scheduled by the test button")
+            android.widget.Toast.makeText(this,
+                "Armed for ${whenIso.take(16)} (T-90 fires in ~1 min). Lock the phone.",
+                android.widget.Toast.LENGTH_LONG).show()
+            Log.i(TAG, "debug alarm armed when=$whenIso exact=${AlarmScheduler.canScheduleExact(this)}")
+        }
+        button("🔔 Test notification") {
+            Notifications.post(this, Notifications.CH_UPDATES, "dbg-notify",
+                "✅ Test notification", "If you can see this, the channel works.", null)
+        }
+        button("ℹ️ Alarm status") {
+            val pending = Prefs.alarms(this).size
+            val msg = "exact allowed: ${AlarmScheduler.canScheduleExact(this)}\n" +
+                "notifications: ${Notifications.canPost(this)}\n" +
+                "pending alarms: $pending"
+            android.app.AlertDialog.Builder(this).setTitle("Status").setMessage(msg)
+                .setPositiveButton("OK", null).show()
+        }
+        root.addView(panel)
     }
 
     private fun registerWithServer() {
