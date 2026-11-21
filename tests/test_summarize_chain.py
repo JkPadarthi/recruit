@@ -67,15 +67,15 @@ def test_first_answering_rung_wins(monkeypatch):
 
     def fake_call(base_url, model, key, subject, body):
         seen.append(model)
-        if model == "google/gemma-4-26b-a4b-it:free":
+        if model == "nvidia/nemotron-3-ultra-550b-a55b:free":
             raise RuntimeError("429")
         return {"company": "HCL Tech", "summary": "ok", "result": False}
 
     monkeypatch.setattr(S, "_call", fake_call)
     out = S.summarize("S", "B")
     assert out["company"] == "HCL Tech"
-    assert seen[0] == "google/gemma-4-26b-a4b-it:free"
-    assert seen[1] == "nvidia/nemotron-3.5-lightning:free"
+    assert seen[0] == "nvidia/nemotron-3-ultra-550b-a55b:free"   # best rung first
+    assert seen[1] == "google/gemma-4-26b-a4b-it:free"
 
 
 def test_chain_health_is_empty_when_summarizing_is_off(monkeypatch):

@@ -41,15 +41,18 @@ SUMMARY_SCHEMA = {
     "interesting": bool,    # advisory focus flag
 }
 
-# Ordered: OpenRouter rungs first (fail fast in ~1 s), local Ollama LAST.
-# Each is (base_url, api_key, model). "" base = skip. Resolved at call-time.
+# Ordered by MEASURED latency + reliability (2026-11-21 bench, 3 tries each):
+#   nemotron-3-ultra    3/3 valid  6.0-12.5s   <- first: it carries the load
+#   gemma-4-26b         rate-limited (429) but fast when free
+#   nemotron-3.5-lightning 3/3 valid 22-59s    <- slow reasoning model, last resort
+#   local Ollama        offline fallback; probed, never waited on
 DEFAULT_CHAIN: list[dict] = [
+    {"base_url": "https://openrouter.ai/api/v1", "api_key": "",
+     "model": "nvidia/nemotron-3-ultra-550b-a55b:free", "kind": "openrouter"},
     {"base_url": "https://openrouter.ai/api/v1", "api_key": "",
      "model": "google/gemma-4-26b-a4b-it:free", "kind": "openrouter"},
     {"base_url": "https://openrouter.ai/api/v1", "api_key": "",
      "model": "nvidia/nemotron-3.5-lightning:free", "kind": "openrouter"},
-    {"base_url": "https://openrouter.ai/api/v1", "api_key": "",
-     "model": "nvidia/nemotron-3-ultra-550b-a55b:free", "kind": "openrouter"},
     {"base_url": "", "api_key": "", "model": "gemma4:12b", "kind": "local"},
 ]
 

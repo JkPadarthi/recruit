@@ -41,10 +41,10 @@ def test_default_chain_ordered():
     # sleeping homelab box cannot delay a summary a public rung could serve.
     # nemotron-3-super-120b:free was WITHDRAWN (404) and replaced by 3.5-lightning.
     models = [m["model"] for m in DEFAULT_CHAIN]
-    assert "gemma" in models[0].lower()                 # google/gemma-4-26b-a4b-it:free
-    assert "lightning" in models[1].lower()             # nvidia/nemotron-3.5-lightning:free
-    assert "ultra" in models[2].lower()                 # nvidia/nemotron-3-ultra-550b-a55b:free
-    assert models[-1] == "gemma4:12b"                   # local Ollama, last
+    assert "ultra" in models[0].lower()                 # measured 3/3 @ 6-12s: carries the load
+    assert "gemma" in models[1].lower()                 # fast when not rate-limited
+    assert "lightning" in models[2].lower()             # valid but 22-59s: last remote resort
+    assert models[-1] == "gemma4:12b"                   # local Ollama, always last
 
 
 def test_chain_propagates_key_to_every_provider(monkeypatch):
