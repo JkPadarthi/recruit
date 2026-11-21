@@ -18,7 +18,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .config import settings
-from .extract import compact_slot
+from .extract import slot_headline
 from .models import Entry, Hit, PushSubscription, UserId
 
 log = logging.getLogger("recruit.push")
@@ -118,7 +118,7 @@ def _company_from_summary(ingest) -> str:
 
 
 def _slots_for_users(db: Session, ingested_id: int, user_ids: set[int]) -> dict[int, str]:
-    """{user_id: '23-11-2026 (2.30 pm) · PRP 713'} from each user's own sheet row."""
+    """{user_id: raw spreadsheet row context} for each matched user's own code."""
     if not user_ids:
         return {}
     slots = {e.normalized_id: e.slot
@@ -131,7 +131,7 @@ def _slots_for_users(db: Session, ingested_id: int, user_ids: set[int]) -> dict[
             select(UserId.user_id, UserId.normalized_id).where(UserId.user_id.in_(user_ids))):
         ctx = slots.get(code)
         if ctx:
-            out.setdefault(uid, compact_slot(ctx))
+            out.setdefault(uid, ctx)
     return out
 
 
@@ -194,15 +194,18 @@ def notify_targeted(db: Session, ingest, matched_user_ids: set[int], has_ids: bo
     # FINAL selection (offer / selected) gets a celebration, not the flat
     # "on the list" line. Company pulled from the summary when available.
     is_selection = getattr(ingest, "outcome", "") == "selection"
-    company = _company_from_summary(ingest) if is_selection else ""
+    company = _company_from_summary(ingest)
     selection_title = (f"🎉🎊 CONGRATULATIONS — you got selected for {company}!"
                        if company else
                        "🎉🎊 CONGRATULATIONS — you got selected!")
 
     for sub in target:
-        # per-user body: a matched student sees their own slot line
+        # A matched student gets ONE line built from their own row:
+        # "HCL Tech Online Test on 23-11-2026 (2:30 pm) - PRP 713".
+        # The subject is NOT repeated: it advertises the day's earliest session
+        # and reads like a paragraph on a phone lock screen.
         slot = slot_by_user.get(sub.user_id, "")
-        user_body = f"{subject}\n📍 {slot}{link_line}" if slot else body
+        user_body = slot_headline(slot, company, subject) if slot else body
         if sub.user_id in matched_user_ids:
             if is_selection:
                 payload = {"title": selection_title, "body": user_body}

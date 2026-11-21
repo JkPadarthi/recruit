@@ -168,9 +168,9 @@ async def test_push_body_carries_slot_for_matched_user_only(client, register, mo
         process_message(_mail_with_xlsx(ROWS), "9004", s)
     assert len(sent) == 1
     body = sent[0]["body"]
-    assert "📍 23-11-2026 (2.30 pm) · PRP 713" in body      # THEIR slot, not the subject's
+    assert "23-11-2026 (2:30 pm) - PRP 713" in body      # THEIR slot, not the subject's
     assert sent[0]["title"] == "✅ You're on the list"
-    assert "2.15" not in body                                # the subject's decoy time is gone
+    assert "2.15" not in body                              # the subject's decoy time is gone
 
 
 async def test_push_body_without_row_context_is_unchanged(client, register, monkeypatch):
@@ -228,3 +228,58 @@ async def test_folded_subject_is_collapsed_and_push_stays_one_line(client, regis
     body = sent[0]["body"]
     assert "\r" not in body
     assert body.split("\n")[0].endswith("2.15 PM @ PRP")   # subject is exactly one line
+
+
+# ---- the notification is ONE derived line, never the subject ---------------
+def test_headline_is_exactly_the_actionable_line():
+    from app.extract import slot_headline
+    full = ("ApplicationNo.: HCLTFP2461546 · Skill Stack: Java (CSE/IT/EEE/ECE) · "
+            "Reporting venue: PRP 713 · Date & Time: 23-11-2026 (2.30 pm)")
+    subject = ("HCL Tech Online Test Is Scheduled on 23-11-2026 & 24-11-2026 by 2.15 PM @ PRP")
+    assert slot_headline(full, "HCL Tech", subject) == (
+        "HCL Tech Online Test on 23-11-2026 (2:30 pm) - PRP 713")
+
+
+def test_headline_handles_split_date_and_time_columns():
+    from app.extract import slot_headline
+    slot = "Date: 9th November · Time: 4:00pm · Venue: PRP 704"
+    assert slot_headline(slot, "Zoho", "Zoho interview schedule") == (
+        "Zoho Interview on 9th November, 4:00pm - PRP 704")
+
+
+def test_headline_without_company_or_kind_still_reads():
+    from app.extract import slot_headline
+    slot = "Reporting venue: PRP 713 · Date & Time: 23-11-2026 (2.30 pm)"
+    assert slot_headline(slot, "", "Kind attention!!") == "23-11-2026 (2:30 pm) - PRP 713"
+
+
+def test_pretty_time_leaves_dates_alone():
+    from app.extract import pretty_time
+    assert pretty_time("23-11-2026 (2.30 pm)") == "23-11-2026 (2:30 pm)"
+    assert pretty_time("23.11.2026") == "23.11.2026"
+
+
+async def test_push_body_is_only_the_headline_for_a_matched_user(client, register, monkeypatch):
+    """No subject, no slot paragraph, no link flag — one line, exactly."""
+    from app.main import db as module_db
+    from app.ingest import process_message
+    import app.push as push_mod
+
+    await register()
+    await client.post("/api/me/ids", json={"register_id": "K3I6O4I8"})
+    await client.post("/api/push/subscribe",
+                      json={"endpoint": "https://fcm.googleapis.com/fcm/send/ONE_LINE", "platform": "web"})
+    sent: list[dict] = []
+    monkeypatch.setattr(push_mod, "vapid_enabled", lambda: True)
+    monkeypatch.setattr(push_mod, "send_to_subscription", lambda sub, payload: sent.append(payload) or True)
+
+    with module_db.session() as s:
+        process_message(_mail_with_xlsx(ROWS, subject=(
+            "HCL Tech Online Test Is Scheduled on 23-11-2026 & 24-11-2026 by 2.15 PM @ PRP")),
+            "9200", s)
+
+    assert len(sent) == 1
+    assert sent[0]["title"] == "✅ You're on the list"
+    assert sent[0]["body"] == "HCL Tech Online Test on 23-11-2026 (2:30 pm) - PRP 713"
+    assert "Is Scheduled" not in sent[0]["body"]
+    assert "📍" not in sent[0]["body"]

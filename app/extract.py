@@ -221,6 +221,134 @@ def compact_slot(slot: str, limit: int = 70) -> str:
     return " · ".join(picked)[:limit].rstrip()
 
 
+_WHEN_LABELS = ("date", "time", "session", "day", "timing")
+_VENUE_LABELS = ("venue", "report", "hall", "location", "place", "centre", "center")
+_SKIP_LABELS = ("birth", "dob", "mobile", "phone", "email", "gender", "degree",
+                "candidate", "id", "name", "campus", "specialization")
+
+
+def _label_has(label: str, keys: tuple[str, ...]) -> bool:
+    """Word-boundary match — 'Candidate Id' must not count as a DATE column,
+    and 'Date of Birth' is not an exam date."""
+    low = label.lower()
+    return any(re.search(rf"\b{k}\b", low) for k in keys)
+
+
+def split_slot(slot: str) -> tuple[str, str]:
+    """('23-11-2026 (2.30 pm)', 'PRP 713') from a stored row context.
+
+    ONLY labelled date/time and venue columns count. An unlabelled cell is as
+    likely to be a role ("QA"), a candidate number ("20949781") or a stack
+    ("CIS") as a date — inventing a slot from those produced nonsense such as
+    "Accenture Result on 20949781"."""
+    when: list[str] = []
+    venue = ""
+    for seg in (slot or "").split("·"):
+        label, sep, value = seg.partition(": ")
+        value = value.strip()
+        if not sep or not value:
+            continue
+        if _label_has(label, _SKIP_LABELS) and not _label_has(label, _VENUE_LABELS):
+            continue
+        if _label_has(label, _VENUE_LABELS):
+            venue = venue or value
+        elif _label_has(label, _WHEN_LABELS):
+            when.append(value)
+    return ", ".join(w for w in when if w and any(c.isdigit() for c in w)), venue
+
+
+_ISO_DT_RE = re.compile(r"\b(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{1,2}):(\d{2})(?::\d{2})?)?")
+
+
+def _iso_to_slot(m: re.Match) -> str:
+    yyyy, mm, dd, hh, mi = m.group(1), m.group(2), m.group(3), m.group(4), m.group(5)
+    if int(yyyy) < 2020:
+        return ""     # a date of birth, or an Excel serial misread as a date
+    out = f"{dd}-{mm}-{yyyy}"
+    if hh and mi and not (int(hh) == 0 and mi == "00"):
+        h = int(hh)
+        suffix = "am" if h < 12 else "pm"
+        out += f" ({h % 12 or 12}:{mi} {suffix})"
+    return out
+
+
+def pretty_time(text: str) -> str:
+    """House date style: '2.30 pm' -> '2:30 pm', '2026-11-07 00:00:00' -> '07-11-2026'."""
+    text = _ISO_DT_RE.sub(_iso_to_slot, text or "")
+    text = re.sub(r"\b(\d{1,2})\.(\d{2})\s*(?=[aApP]\.?[mM])", r"\1:\2 ", text)
+    return re.sub(r"\s{2,}", " ", text).strip(" ,")
+
+
+# What the mail is ABOUT — one short label, never the full subject.
+_EVENT_KINDS = (
+    (("pre-placement", "pre placement", "ppt"), "Pre-Placement Talk"),
+    (("online test", "online assessment"), "Online Test"),
+    (("interview",), "Interview"),
+    (("registration", "register"), "Registration"),
+    (("selection list", "selected", "result"), "Result"),
+)
+
+
+def event_kind(subject: str) -> str:
+    low = (subject or "").lower()
+    for keys, label in _EVENT_KINDS:
+        if any(k in low for k in keys):
+            return label
+    return ""
+
+
+# Fallback only: when the LLM summary is missing/deferred there is no company
+# field, so read it off the subject the way a human does — strip the CDC's
+# noise prefixes, then cut at the first event/boilerplate word.
+_SUBJ_NOISE = ("re:", "fwd:", "kind attention", "kind attn", "attention",
+               "congratulations", "congrats", "updated", "urgent",
+               "final reminder", "reminder", "important")
+_SUBJ_CUTS = ("online test", "online assessment", "pre-placement", "pre placement",
+              "ppt", "is scheduled", "scheduled", "interview", "registration",
+              "selection list", "selected", "shortlist", "next round", "result",
+              "process", "applied", "candidates", "students", " is ", " are ",
+              "!!", "!", " - ", " – ", ":")
+
+
+def company_from_subject(subject: str) -> str:
+    s = re.sub(r"\s+", " ", subject or "").strip()
+    for _ in range(4):  # peel stacked prefixes ("Re: Kind Attn: ...")
+        low = s.lower()
+        nxt = next((n for n in _SUBJ_NOISE if low.startswith(n)), None)
+        if not nxt:
+            break
+        s = s[len(nxt):].lstrip(" :!-,.")
+    low = s.lower()
+    cuts = [i for i in (low.find(k) for k in _SUBJ_CUTS) if i > 0]
+    name = s[:min(cuts)].strip(" :!-,.*") if cuts else s.strip(" :!-,.*")
+    return name[:40]
+
+
+def slot_headline(slot: str, company: str = "", subject: str = "") -> str:
+    """The whole notification in one line, built from the student's OWN row:
+    'HCL Tech Online Test on 23-11-2026 (2:30 pm) - PRP 713'.
+
+    The mail subject is deliberately NOT used for its text (it advertises the
+    day's earliest session and reads like a paragraph); only a short event label
+    is borrowed from it. Falls back to the slot alone when the company is unknown.
+    """
+    if not slot:
+        return ""
+    when, venue = split_slot(slot)
+    when = pretty_time(when)
+    if not when and not venue:
+        return ""          # not a scheduling row — let the caller use the subject
+    if venue and venue.islower() and len(venue) <= 12:
+        venue = venue.upper()          # "prp 717" -> "PRP 717"
+    head = " ".join(x for x in ((company or company_from_subject(subject)).strip(),
+                                event_kind(subject)) if x).strip()
+    if when:
+        head = f"{head} on {when}".strip() if head else when
+    if venue:
+        head = f"{head} - {venue}" if head else venue
+    return head[:120]
+
+
 def classify(subject: str, body: str, extracted: set[str], has_spreadsheet: bool) -> str:
     """'shortlist' if the mail carries/embeds a results list; else 'announcement'."""
     if has_spreadsheet:

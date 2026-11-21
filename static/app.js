@@ -394,6 +394,13 @@ function renderHitCounts() {
   document.title = (unread ? `(${unread}) ` : '') + document.title.replace(/^\(\d+\) /, '');
 }
 
+// The hits page leads with the mail's SUMMARY (what the process is), not the
+// subject line — the subject is a paragraph and lives in the feed instead.
+function hitLine(h) {
+  const s = h.summary && h.summary.summary;
+  return (s && s.trim()) ? s.trim() : (h.subject || '');
+}
+
 function renderHits() {
   const box = $('hits');
   if (!box) return;
@@ -411,10 +418,9 @@ function renderHits() {
       <span class="hit-dot" aria-hidden="true"></span>
       <div class="hit-main">
         <span class="hit-id">${escapeHtml(h.normalized_id)}</span>
-        <span class="hit-subj">${escapeHtml(h.subject)}</span>
-        <div class="mail-top">${kindTag(h.kind)}<time>${escapeHtml(when(h.first_seen_at))}</time>${h.read ? '' : '<span class="sr-only">unread</span>'}</div>
+        <p class="hit-summ">${escapeHtml(hitLine(h))}</p>
         ${slotHtml(h.slot ? { [h.normalized_id]: h.slot } : null, false)}
-        ${h.summary && h.summary.summary ? `<p class="mail-summ">${escapeHtml(h.summary.summary)}</p>` : ''}
+        <div class="mail-top">${kindTag(h.kind)}<time>${escapeHtml(when(h.first_seen_at))}</time>${h.read ? '' : '<span class="sr-only">unread</span>'}</div>
       </div>
       ${h.read ? '' : `<button class="icon-btn is-good" type="button" data-read="${h.id}" aria-label="Mark as read" title="Mark as read">${icon('check')}</button>`}
     </div>`).join('');
