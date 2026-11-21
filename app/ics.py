@@ -72,7 +72,7 @@ def build_ics(
         "CALSCALE:GREGORIAN",
         "METHOD:PUBLISH",
         "BEGIN:VEVENT",
-        f"UID:{uid}@recruit.98487840.xyz",
+        f"UID:{uid}@recruit.jaswanth.me",
         f"DTSTAMP:{_utc_stamp(dt.datetime.now(dt.timezone.utc))}",
         f"DTSTART:{_utc_stamp(start)}",
         f"DTEND:{_utc_stamp(end)}",

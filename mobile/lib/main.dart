@@ -10,7 +10,13 @@ import 'screens/home.dart';
 import 'screens/login.dart';
 
 /// The one place the backend lives.
-const String kBaseUrl = 'https://recruit.98487840.xyz';
+/// Where the API lives. Overridable at build time:
+///   flutter build apk --dart-define=BASE_URL=https://staging.example
+/// A hardcoded host means a domain change forces a new APK on every phone.
+const String kBaseUrl = String.fromEnvironment(
+  'BASE_URL',
+  defaultValue: 'https://recruit.jaswanth.me',
+);
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

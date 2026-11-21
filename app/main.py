@@ -349,7 +349,7 @@ def hit_calendar(hit_id: int, request: Request):
         when_iso=when,
         location=venue or "",
         description=slot_text,
-        url="https://recruit.98487840.xyz/dashboard#hits",
+        url="https://recruit.jaswanth.me/dashboard#hits",
     )
     return Response(
         content=body,

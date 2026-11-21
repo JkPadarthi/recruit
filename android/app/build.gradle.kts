@@ -15,7 +15,7 @@ android {
         versionName = "1.0"
 
         // One place to change if the domain ever moves.
-        buildConfigField("String", "BASE_URL", "\"https://recruit.98487840.xyz\"")
+        buildConfigField("String", "BASE_URL", "\"https://recruit.jaswanth.me\"")
     }
 
     buildTypes {

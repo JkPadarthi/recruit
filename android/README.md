@@ -26,7 +26,7 @@ The web app remains the source of truth. This shell only adds delivery.
    FCM_SERVICE_ACCOUNT=/run/secrets/fcm_service_account.json
    ```
    then `docker compose up -d` in `~/Projects/recruit`.
-   Check: `curl -s https://recruit.98487840.xyz/api/status | jq .fcm_enabled` → `true`.
+   Check: `curl -s https://recruit.jaswanth.me/api/status | jq .fcm_enabled` → `true`.
 
 > Cloud Messaging does not have to be "enabled" anywhere — adding the Android app is enough.
 > No billing account is involved; FCM is free.
