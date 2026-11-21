@@ -184,10 +184,57 @@ def add_id(body: IdIn, request: Request):
         dup = s.execute(select(UserId).where(UserId.user_id == u.id,
                                              UserId.normalized_id == norm)).scalar_one_or_none()
         if dup:
-            return {"added": False, "normalized_id": norm}
+            return {"added": False, "normalized_id": norm, "backfilled": 0}
         s.add(UserId(user_id=u.id, register_id=body.register_id.strip(), normalized_id=norm))
         s.commit()
-        return {"added": True, "normalized_id": norm}
+        # BACKFILL: the matcher otherwise runs only at ingest time, so every mail
+        # that arrived before this ID was added is permanently invisible to this
+        # user (measured: 75 real shortlist mails silently missed across 5 users,
+        # one user 37 of 37). Re-match the mails that actually contain this code.
+        backfilled = _backfill_hits_for(s, u.id, norm)
+        return {"added": True, "normalized_id": norm, "backfilled": backfilled}
+
+
+def _backfill_hits_for(s: Session, user_id: int, norm: str) -> int:
+    """Create the missing hits for one (user, code) pair. Idempotent.
+
+    Only mails whose OWN entries contain this code are touched — the mail is the
+    authority, never the user's ID list (passing user codes would fabricate hits).
+    Older mail is created as already-read so the unread badge stays about what is
+    still actionable; the history is still visible in the hits list.
+    """
+    from .matcher import match_shortlist
+    from .models import Entry
+
+    ing_ids = [r[0] for r in s.execute(
+        select(Entry.ingested_id).where(Entry.normalized_id == norm).distinct())]
+    if not ing_ids:
+        return 0
+    before = s.execute(select(func.count(Hit.id)).where(
+        Hit.user_id == user_id, Hit.normalized_id == norm)).scalar_one()
+    for iid in ing_ids:
+        match_shortlist(s, iid, {norm})
+    s.commit()
+    after = s.execute(select(func.count(Hit.id)).where(
+        Hit.user_id == user_id, Hit.normalized_id == norm)).scalar_one()
+    created = after - before
+    if created:
+        # Age is judged by the MAIL's timestamp, not the hit's (a backfilled hit is
+        # created now): old shortlists are history, not a fresh alarm.
+        from datetime import datetime, timedelta, timezone
+        cut = datetime.now(timezone.utc) - timedelta(days=14)
+        fresh = s.execute(select(Hit).where(
+            Hit.user_id == user_id, Hit.normalized_id == norm,
+            Hit.read_at.is_(None))).scalars().all()
+        for h in fresh:
+            ing = s.get(Ingested, h.ingested_id)
+            ts = ing.created_at if ing and ing.created_at else None
+            if ts and ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
+            if ts and ts < cut:
+                h.read_at = ts
+        s.commit()
+    return created
 
 
 @app.delete("/api/me/ids/{normalized_id}")
