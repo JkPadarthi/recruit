@@ -188,7 +188,7 @@ class _HitsTabState extends State<HitsTab> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(R.rL)),
       ),
-      builder: (_) => _HitSheet(hit: hit),
+      builder: (_) => _HitSheet(hit: hit, icsUrl: widget.api.hitIcsUrl(hit.id)),
     );
   }
 
@@ -315,8 +315,9 @@ class _HitCard extends StatelessWidget {
 /// The full payload behind one tap: every labelled field of your own sheet row,
 /// then the summary. This replaces the "Details" chevron that hid the point.
 class _HitSheet extends StatelessWidget {
-  const _HitSheet({required this.hit});
+  const _HitSheet({required this.hit, required this.icsUrl});
   final Hit hit;
+  final String icsUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -390,6 +391,25 @@ class _HitSheet extends StatelessWidget {
                   Text(hit.registerId ?? '', style: R.code.copyWith(color: R.saffron)),
                 ],
               ),
+              // Only when the row carries a time: an alarm from a guessed time is
+              // worse than none, and the server refuses the same case with a 409.
+              if (hit.slot.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                OutlinedButton.icon(
+                  onPressed: () =>
+                      launchUrl(Uri.parse(icsUrl), mode: LaunchMode.externalApplication),
+                  icon: const Icon(Icons.calendar_month_outlined, size: 17),
+                  label: const Text('Add to calendar · remind me 90 min before'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: R.saffron,
+                    side: const BorderSide(color: Color(0x4DF4B33D)),
+                    textStyle: R.small,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(R.rS)),
+                  ),
+                ),
+              ],
             ],
           ),
         ),

@@ -465,3 +465,21 @@ svg { width: 22px; height: 22px; flex: none; }
     .stat-val { font-size: 24px; }
     .tabbar-btn { font-size: 10.5px; }
 }
+
+/* Free iOS reminder: no app install, no Apple account — Calendar fires the VALARM.
+   Sits where "Details" does so it reads as an action on the row, not a decoration. */
+.hit-ics {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 5px 10px 5px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong, rgba(220, 240, 230, .16));
+  color: var(--saffron, #f4b33d);
+  font-size: 12.5px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.hit-ics:hover { background: rgba(244, 179, 61, .10); }
+.hit-ics svg { width: 14px; height: 14px; }

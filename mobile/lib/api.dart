@@ -132,6 +132,10 @@ class ApiClient {
           as Map<String, dynamic>;
 
   /// Hands Play Services' token to the server. Same call the Kotlin shell made.
+  /// Direct link to a hit's calendar file. Opened in the browser/Calendar app,
+  /// which is the only reminder an iPhone can keep without a paid Apple account.
+  String hitIcsUrl(int hitId) => '$_base/api/hits/$hitId/ics';
+
   Future<bool> registerFcmToken(String token) async {
     // The server picks a different payload shape per platform, so this must be
     // truthful: an iOS token registered as "android" gets a message FCM rejects.

@@ -302,6 +302,62 @@ def get_hits(request: Request, unread_only: bool = False):
         return {"hits": out, "unread": unread}
 
 
+@app.get("/api/hits/{hit_id}/ics")
+def hit_calendar(hit_id: int, request: Request):
+    """A calendar reminder for ONE shortlist row.
+
+    The free iOS path: an iPhone cannot install our app without a paid Apple account,
+    and Safari has no local-alarm API, so an .ics with a VALARM is the only reminder
+    it can keep. Owner-only — a 404 for anyone else, so this cannot enumerate hits.
+
+    409 rather than a guessed time when the sheet row has no readable date: a wrong
+    alarm is worse than none, and the hit itself is still visible.
+    """
+    from .extract import company_from_subject, event_kind, slot_deadline, split_slot
+    from .ics import build_ics
+
+    with db.session() as s:
+        u = _current_user(request, s)
+        hit = s.get(Hit, hit_id)
+        if hit is None or hit.user_id != u.id:
+            raise HTTPException(404, "no such hit")
+
+        ent = s.execute(select(Entry).where(
+            Entry.ingested_id == hit.ingested_id,
+            Entry.normalized_id == hit.normalized_id,
+            Entry.slot != "",
+        )).scalars().first()
+        if ent is None:
+            raise HTTPException(409, "this shortlist has no sheet row to schedule")
+
+        when = slot_deadline(ent.slot)
+        if not when:
+            raise HTTPException(409, "that sheet row has no readable date and time")
+
+        ing = s.get(Ingested, hit.ingested_id)
+        subject = (ing.subject if ing else "") or ""
+        summary = _load_summary(ing) or {}
+        company = str(summary.get("company") or "").strip() or company_from_subject(subject)
+        kind = event_kind(subject)
+        title = " ".join(part for part in (company, kind) if part).strip() or subject[:80] or "CDC shortlist"
+        _when, venue = split_slot(ent.slot)
+        slot_text = ent.slot
+
+    body = build_ics(
+        uid=f"recruit-{hit_id}",
+        title=title,
+        when_iso=when,
+        location=venue or "",
+        description=slot_text,
+        url="https://recruit.98487840.xyz/dashboard#hits",
+    )
+    return Response(
+        content=body,
+        media_type="text/calendar; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="recruit-{hit_id}.ics"'},
+    )
+
+
 @app.post("/api/hits/{hit_id}/read")
 def mark_read(hit_id: int, request: Request):
     with db.session() as s:

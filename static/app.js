@@ -440,6 +440,8 @@ function renderHits() {
         </div>
         <p class="${h.slot ? 'hit-row' : 'hit-summ'}">${escapeHtml(hitLine(h))}</p>
         <div class="mail-top">${kindTag(h.kind)}<time>${escapeHtml(when(h.first_seen_at))}</time>${h.read ? '' : '<span class="sr-only">unread</span>'}</div>
+        ${h.slot ? `<a class="hit-ics" href="/api/hits/${h.id}/ics" download
+             title="Adds a calendar event with a 90-minute reminder">${icon('calendar')}Add to calendar</a>` : ''}
         ${extra ? `<button class="hit-more" type="button" data-more="${h.id}"
              aria-expanded="${open ? 'true' : 'false'}" aria-controls="hit-extra-${h.id}">${open ? 'Hide details' : 'Details'}</button>
           <div class="hit-extra" id="hit-extra-${h.id}"${open ? '' : ' hidden'}>${extra}</div>` : ''}
