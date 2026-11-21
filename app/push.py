@@ -148,7 +148,7 @@ def notify_targeted(db: Session, ingest, matched_user_ids: set[int], has_ids: bo
            - IDs present  -> only the matched user(s)
            - no IDs       -> EVERYONE
     """
-    if not ingest or not vapid_enabled():
+    if not ingest:
         return
     from .extract import audience_matches, parse_audience
     from .models import User
@@ -173,20 +173,20 @@ def notify_targeted(db: Session, ingest, matched_user_ids: set[int], has_ids: bo
     # shortlist (e.g. "Citi next round" with 73 IDs) — its links are for the
     # matched students, not everyone. Return matched users in that case.
     notify_all_users = (has_reg or has_test) and not has_ids
-    subs = db.execute(
+    all_subs = db.execute(
         select(PushSubscription).where(PushSubscription.platform == "web")
     ).scalars().all()
-    # pre-filter every candidate by audience BEFORE deciding scope
-    qualified = [s for s in subs
-                 if audience_matches(aud,
-                                     (users.get(s.user_id).division if users.get(s.user_id) else ""),
-                                     (users.get(s.user_id).branch if users.get(s.user_id) else ""))]
-    if notify_all_users:
-        target = qualified
-    else:
-        target = [s for s in qualified if s.user_id in matched_user_ids]
-    if not target:
+
+    # Who qualifies by audience (branch/division), computed from USERS so the
+    # Android path works for people who never enabled browser push.
+    qualified_ids = {
+        uid for uid, u in users.items()
+        if audience_matches(aud, u.division or "", u.branch or "")
+    }
+    recipient_ids = qualified_ids if notify_all_users else (qualified_ids & matched_user_ids)
+    if not recipient_ids:
         return
+    target = [s for s in all_subs if s.user_id in recipient_ids]
 
     # Defensive: rows ingested before the CRLF fix still carry folded subjects.
     subject = re.sub(r"\s+", " ", ingest.subject or "").strip() or "a placement update"
@@ -194,37 +194,65 @@ def notify_targeted(db: Session, ingest, matched_user_ids: set[int], has_ids: bo
     link_line = "\n🔗 has an attached link — open the feed" if has_link else ""
     body = f"{subject}{link_line}"
     # WHERE/WHEN for the students who are actually ON the list — their own row.
-    slot_by_user = _slots_for_users(db, ingest.id, matched_user_ids)
+    slot_by_user = _slots_for_users(db, ingest.id, recipient_ids)
 
     # FINAL selection (offer / selected) gets a celebration, not the flat
     # "on the list" line. Company pulled from the summary when available.
     is_selection = getattr(ingest, "outcome", "") == "selection"
     # The summary is computed AFTER the push now, so it may be empty here — read
     # the company off the subject as a fallback so the celebration still names it.
-    from .extract import company_from_subject
+    from .extract import company_from_subject, event_kind, slot_deadline
     company = _company_from_summary(ingest) or company_from_subject(subject)
     selection_title = (f"🎉🎊 CONGRATULATIONS — you got selected for {company}!"
                        if company else
                        "🎉🎊 CONGRATULATIONS — you got selected!")
 
-    for sub in target:
+    # ONE payload per user, then fan out to every transport that user has.
+    per_user: dict[int, dict[str, str]] = {}
+    tag = f"recruit-{ingest.id}"
+
+    def _title_for(uid: int) -> str:
+        if uid in matched_user_ids:
+            return selection_title if is_selection else "✅ You're on the list"
+        if has_test:
+            return "🧪 Test link available"
+        if has_reg:
+            return "📝 Registration open"
+        if ingest.kind == "shortlist":
+            return "📋 New shortlist"
+        return "📢 New announcement"
+
+    for uid in recipient_ids:
         # A matched student gets ONE line built from their own row:
         # "HCL Tech Online Test on 23-11-2026 (2:30 pm) - PRP 713".
         # The subject is NOT repeated: it advertises the day's earliest session
         # and reads like a paragraph on a phone lock screen.
-        slot = slot_by_user.get(sub.user_id, "")
+        slot = slot_by_user.get(uid, "")
         user_body = slot_headline(slot, company, subject) if slot else body
-        # `tag` collapses duplicates: one card per mail, re-sends replace it.
-        tag = f"recruit-{ingest.id}"
-        if sub.user_id in matched_user_ids:
-            title = selection_title if is_selection else "✅ You're on the list"
-        elif has_test:
-            title = "🧪 Test link available"
-        elif has_reg:
-            title = "📝 Registration open"
-        elif ingest.kind == "shortlist":
-            title = "📋 New shortlist"
-        else:
-            title = "📢 New announcement"
-        send_to_subscription(sub, {"title": title, "body": user_body,
-                                   "tag": tag, "url": "/dashboard#hits"})
+        when_iso = slot_deadline(slot) if slot else ""
+        per_user[uid] = {
+            "title": _title_for(uid),
+            "body": user_body,
+            "tag": tag,
+            "url": "/dashboard#hits",
+            "when_iso": when_iso,
+            # Alarm label the app can show 90 min before: "HCL Tech Online Test".
+            "event": " ".join(x for x in (company, event_kind(subject)) if x).strip() or subject[:60],
+        }
+
+    # Transport 1: Web Push (instant when the browser is alive).
+    if vapid_enabled():
+        for sub in target:
+            data = per_user.get(sub.user_id)
+            if not data:
+                continue
+            send_to_subscription(sub, {"title": data["title"], "body": data["body"],
+                                       "tag": data["tag"], "url": data["url"]})
+
+    # Transport 2: FCM to the native shell (system-delivered; survives Doze).
+    # No-op when no service account is configured.
+    from . import fcm
+    if fcm.enabled():
+        stats = fcm.send(db, per_user)
+        if stats["sent"] or stats["failed"] or stats["pruned"]:
+            log.info("fcm: %s", stats)

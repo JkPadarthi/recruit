@@ -4,9 +4,16 @@ classifies a mail as shortlist vs announcement."""
 from __future__ import annotations
 
 import csv
+import datetime as dt
 import re
 
 from .util import looks_like_id, normalize_id
+
+# Reporting times are ALWAYS IST: VIT is in Vellore and the sheets are local.
+_IST = dt.timezone(dt.timedelta(hours=5, minutes=30), "IST")
+_SLOT_DATE_RE = re.compile(r"\b(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})\b")
+# '2:30 pm' / '2.30 pm' / '10:00am' — a 24h value with no am/pm is not a slot time.
+_SLOT_TIME_RE = re.compile(r"\b(\d{1,2})[.:](\d{2})\s*([ap])\.?\s*m\b", re.IGNORECASE)
 
 _TOKEN_RE = re.compile(r"[A-Z0-9]{4,16}")
 # a URL (scheme, www, or bare host) — its path/query slugs must never be read as IDs
@@ -270,6 +277,39 @@ def _iso_to_slot(m: re.Match) -> str:
         suffix = "am" if h < 12 else "pm"
         out += f" ({h % 12 or 12}:{mi} {suffix})"
     return out
+
+
+def slot_deadline(slot: str) -> str:
+    """ISO-8601 reporting time with the IST offset, from a stored row context.
+
+    '23-11-2026 (2:30 pm) · PRP 713' -> '2026-11-23T14:30:00+05:30'
+
+    Returns "" when the row has no readable date AND time. That is deliberate: a
+    phone alarm scheduled from a guessed time is worse than no alarm, and the
+    notification still goes out either way.
+    """
+    when, _venue = split_slot(slot)
+    # Stored rows are label-qualified ("Date & Time: ... · Reporting venue: ...")
+    # and already-compacted slots are bare ("23-11-2026 (2.30 pm) · PRP 713").
+    # split_slot only understands the labelled form, so fall back to the raw text.
+    hay = when or (slot or "")
+    d = _SLOT_DATE_RE.search(hay)
+    if not d:
+        return ""
+    t = _SLOT_TIME_RE.search(hay)
+    if not t:
+        return ""
+    try:
+        day, month, year = int(d.group(1)), int(d.group(2)), int(d.group(3))
+        hour, minute = int(t.group(1)), int(t.group(2))
+        ampm = t.group(3).lower()
+        if ampm == "p" and hour != 12:
+            hour += 12
+        elif ampm == "a" and hour == 12:
+            hour = 0
+        return dt.datetime(year, month, day, hour, minute, tzinfo=_IST).isoformat()
+    except ValueError:
+        return ""
 
 
 def pretty_time(text: str) -> str:

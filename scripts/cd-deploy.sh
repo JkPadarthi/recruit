@@ -95,7 +95,8 @@ if [ "$FORCE" -eq 0 ]; then
     esac
 fi
 
-log "${FORCE:+FORCED }deploy ${local:0:7} -> $short"
+prefix=""; [ "$FORCE" -eq 1 ] && prefix="(forced) "
+log "${prefix}deploy ${local:0:7} -> $short"
 git pull --ff-only --quiet origin main 2>>"$LOG" || true
 
 if ! docker compose build app worker >>"$LOG" 2>&1; then

@@ -101,6 +101,23 @@ class AppState(Base):
     last_poll_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class FcmToken(Base):
+    """One Android/Android-shell device token per row (FCM HTTP v1).
+
+    Separate from push_subscriptions because the transport is different: a browser
+    endpoint has p256dh+auth keys, an FCM token is just a string handed to Play
+    Services. Keeping them apart means a dead FCM token can be pruned without
+    touching the web subscription and vice versa.
+    """
+    __tablename__ = "fcm_tokens"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    platform: Mapped[str] = mapped_column(String(16), default="android")
+    token: Mapped[str] = mapped_column(String(512), unique=True, index=True)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class PushSubscription(Base):
     """One push endpoint per user/platform (web = Web Push/VAPID; fcm/apns later)."""
     __tablename__ = "push_subscriptions"

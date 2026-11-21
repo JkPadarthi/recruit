@@ -1,0 +1,8 @@
+# The Android shell is built on a Mac (needs the SDK); keep it out of the image
+# build context so deploys stay small and fast.
+android/
+.git/
+data/
+tests/
+docs/
+*.db

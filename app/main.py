@@ -86,6 +86,11 @@ class PushIn(BaseModel):
     endpoint: str
     keys: dict = {}
     platform: str = "web"
+class FcmIn(BaseModel):
+    token: str
+    platform: str = "android"
+
+
 class TestPushIn(BaseModel):
     user_id: int
     title: str = "Recruit"
@@ -372,6 +377,7 @@ def _summary_health() -> list[dict]:
 
 @app.get("/api/status")
 def status():
+    from . import fcm as fcm_mod
     with db.session() as s:
         st = s.get(AppState, 1)
         counts = {
@@ -382,6 +388,7 @@ def status():
         return {"brand": settings.brand_name, "last_uid": st.last_uid if st else None,
                 "last_poll_at": st.last_poll_at.isoformat() if st and st.last_poll_at else None,
                 "summarize_enabled": settings.summarize_enabled,
+                "fcm_enabled": fcm_mod.enabled(),
                 "summary_chain": _summary_health(),
                 "summary_providers_usable": sum(1 for r in _summary_health() if r["reachable"]),
                 "counts": counts}
@@ -462,6 +469,34 @@ def push_subscribe(body: PushIn, request: Request):
                                endpoint=body.endpoint, keys_json=json.dumps(body.keys)))
         s.commit()
         return {"subscribed": True}
+
+
+@app.post("/api/push/fcm")
+def push_fcm_register(body: FcmIn, request: Request):
+    """The Android shell reports its FCM token here, authenticated by the same
+    web session cookie the WebView already holds. No second login."""
+    from . import fcm
+    with db.session() as s:
+        u = _current_user(request, s)
+        if not body.token.strip():
+            raise HTTPException(400, "empty token")
+        moved = fcm.register(s, u.id, body.token, body.platform)
+        return {"registered": True, "moved_from_other_account": moved}
+
+
+@app.post("/api/push/fcm/unregister")
+def push_fcm_unregister(body: FcmIn, request: Request):
+    """Remove THIS device's token (uninstall/logout). Other devices untouched."""
+    from .models import FcmToken
+    with db.session() as s:
+        u = _current_user(request, s)
+        row = s.execute(select(FcmToken).where(
+            FcmToken.user_id == u.id, FcmToken.token == body.token)).scalar_one_or_none()
+        if row:
+            s.delete(row)
+            s.commit()
+            return {"unregistered": True}
+        return {"unregistered": False}
 
 
 @app.post("/api/push/unsubscribe")

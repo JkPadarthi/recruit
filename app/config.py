@@ -51,6 +51,10 @@ class Settings:
     vapid_private_key: str = field(default_factory=lambda: _env("VAPID_PRIVATE_KEY", ""))
     vapid_subject: str = field(default_factory=lambda: _env("VAPID_SUBJECT", "mailto:admin@example.com"))
 
+    # Native push (FCM HTTP v1). Path to the Firebase service-account JSON.
+    # Empty/missing file => native push stays off; web push is unaffected.
+    fcm_service_account: str = field(default_factory=lambda: _env("FCM_SERVICE_ACCOUNT", ""))
+
     # LLM summarizer (gated off until the deterministic core is validated)
     summarize_enabled: bool = field(default_factory=lambda: _flag(_env("SUMMARIZE_ENABLED", "")))
     llm_base_url: str = field(default_factory=lambda: _env("LLM_BASE_URL", ""))
