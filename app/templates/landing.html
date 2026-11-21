@@ -65,21 +65,21 @@
       <div class="install-card install-card--app">
         <svg class="install-ico" aria-hidden="true"><use href="#i-phone"/></svg>
         <h3>Android</h3>
-        <ol>
-          <li>Tap <strong>Get the APK</strong> below</li>
-          <li>Allow installs from Chrome once</li>
-          <li>Sign in and allow notifications</li>
-        </ol>
-        <a class="btn btn-primary btn-sm install-btn" href="/app">Get the APK</a>
+        <p class="install-line">
+          Notifications that survive Doze, and a reminder 90&nbsp;minutes before
+          reporting time.
+        </p>
+        <a class="btn btn-primary btn-sm install-btn" href="/app">Install app</a>
+        <p class="install-hint">v{{ apk.version }} · {{ apk.size_mb }}&nbsp;MB · free</p>
       </div>
       {% else %}
       <div class="install-card">
         <svg class="install-ico" aria-hidden="true"><use href="#i-phone"/></svg>
-        <h3>Android · Chrome</h3>
+        <h3>Android</h3>
         <ol>
           <li>Open <span class="mono">{{ request.url.hostname }}</span> in Chrome</li>
           <li>Tap <strong>Install</strong> when Chrome offers it</li>
-          <li>Open the new icon and allow notifications</li>
+          <li>Open the icon and allow notifications</li>
         </ol>
       </div>
       {% endif %}

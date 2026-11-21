@@ -430,6 +430,12 @@ svg { width: 22px; height: 22px; flex: none; }
 .install-card li { font-size: 14px; color: var(--ink-2); }
 .install-card strong { color: var(--ink); font-weight: 600; }
 .install-card--app { background: linear-gradient(180deg, rgba(244,179,61,.06), transparent 60%), var(--surface); }
+.install-line {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--ink-3);
+}
 .install-btn { margin-top: 14px; }
 /* An inline icon where a character used to be: ⋮ rendered as ":" in some fonts. */
 .kbd {
