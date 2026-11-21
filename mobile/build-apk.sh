@@ -14,8 +14,15 @@ MODE="${1:-release}"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo "==> syncing Dart + Android config to $HOST:~/$REMOTE"
-tar czf - -C "$HERE" lib pubspec.yaml pubspec.lock android/app/build.gradle.kts \
-  android/app/src/main/AndroidManifest.xml \
+# NOTE: tar from the PARENT of mobile/ and strip exactly one component, so the
+# paths land as lib/... and android/... on the remote. Taring from inside mobile/
+# with --strip-components=1 silently turns android/settings.gradle.kts into
+# settings.gradle.kts at the root, which changes nothing and looks like success.
+tar czf - -C "$HERE/.." \
+  mobile/lib mobile/pubspec.yaml mobile/pubspec.lock \
+  mobile/android/settings.gradle.kts mobile/android/build.gradle.kts \
+  mobile/android/app/build.gradle.kts mobile/android/app/google-services.json \
+  mobile/android/app/src/main/AndroidManifest.xml \
   | ssh "$HOST" "tar xzf - -C ~/$REMOTE --strip-components=1"
 
 if [ "$MODE" = "--debug" ]; then

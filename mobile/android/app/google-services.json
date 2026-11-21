@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "932980493136",
+    "project_id": "recruit-101d5",
+    "storage_bucket": "recruit-101d5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:932980493136:android:e7170a1e7f50858dfb3a55",
+        "android_client_info": {
+          "package_name": "com.jkpadarthi.recruit"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAjZueg5sSQKSTeS-YJ9xEXQ4MCmMkGv00"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
