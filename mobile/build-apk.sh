@@ -65,6 +65,18 @@ if [ "$ACTUAL" != "$VERSION" ]; then
   echo "!! APK reports versionName '$ACTUAL' but pubspec says '$VERSION' — stale artifact, not shipping" >&2
   exit 1
 fi
+# The status-bar icon is named by a string inside the FCM payload, so shrinking can
+# strip it without anything failing. Assert it survived, or the push quietly shows
+# the launcher icon instead.
+# NOTE: \$HOME, not $HOME — unescaped, the local shell expands it and the remote
+# command silently fails, which looks exactly like a missing resource.
+if ! ssh "$HOST" "\$HOME/android-build/sdk/build-tools/35.0.0/aapt2 dump resources \
+      ~/$REMOTE/build/app/outputs/flutter-apk/$OUT_NAME 2>/dev/null | grep -q ic_stat_recruit"; then
+  echo "!! ic_stat_recruit missing from the APK (resource shrinker ate it)" >&2
+  exit 1
+fi
+echo "    status-bar icon present in resource table"
+
 NAMED="$HOME/Downloads/recruit-v${VERSION}.apk"
 cp -f "$HOME/Downloads/$LOCAL" "$NAMED"
 ls -lh "$NAMED"

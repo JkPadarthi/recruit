@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  FCM names this drawable as a STRING in the push payload, so neither R8 nor the
+  resource shrinker can see a reference to it and it gets stripped from the APK.
+  The notification then falls back to the launcher icon, which Android paints as a
+  white blob. tools:keep is the documented way to pin a resource like this.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/ic_stat_recruit" />
