@@ -301,7 +301,7 @@ function slotHtml(map, withCode) {
   const keys = Object.keys(map || {});
   if (!keys.length) return '';
   return `<div class="slots">${keys.map((k) => `
-    <div class="slot">${withCode ? `<span class="slot-code">${escapeHtml(k)}</span>` : ''}<span class="slot-pin" aria-hidden="true">📍</span><span class="slot-text">${escapeHtml(map[k])}</span></div>`).join('')}</div>`;
+    <div class="slot">${withCode ? `<span class="slot-code">${escapeHtml(k)}</span>` : ''}<span class="slot-text">${escapeHtml(map[k])}</span></div>`).join('')}</div>`;
 }
 
 function mailHtml(m) {
@@ -313,8 +313,8 @@ function mailHtml(m) {
     <article class="mail">
       <div class="mail-top">${kindTag(m.kind)}<time>${escapeHtml(when(m.date))}</time></div>
       <h3 class="mail-subj">${escapeHtml(m.subject || '(no subject)')}</h3>
-      ${slotHtml(m.my_slots, true)}
       ${summ ? `<p class="mail-summ">${escapeHtml(summ)}</p><button class="more-btn" type="button" hidden>Show more</button>` : ''}
+      ${slotHtml(m.my_slots, true)}
       ${links ? `<div class="mail-links">${links}</div>` : ''}
     </article>`;
 }

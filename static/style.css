@@ -296,7 +296,7 @@ svg { width: 22px; height: 22px; flex: none; }
   color: var(--ink); font-size: 13px; line-height: 1.4;
   font-variant-numeric: tabular-nums;
 }
-.slot-pin { font-size: 12px; }
+.slot-pin { display: none; }   /* the pin emoji read as noise; the box is signal enough */
 .slot-text { font-weight: 600; }
 .slot-code {
   font-family: var(--font-num); font-size: 12px; font-weight: 700;
