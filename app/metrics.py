@@ -30,6 +30,8 @@ G_SUBS = Gauge("recruit_push_subscriptions", "push subscriptions")
 G_INGESTED = Gauge("recruit_ingested", "ingested mails in feed")
 G_HITS_UNREAD = Gauge("recruit_hits_unread", "unread hits across all users")
 G_LAST_UID = Gauge("recruit_last_uid", "last processed IMAP UID")
+G_SUMMARY_RUNGS = Gauge("recruit_summary_rungs_usable",
+                        "LLM chain endpoints answering a TCP probe (0 = summaries will defer)")
 
 
 def set_db_gauges(db) -> None:
@@ -37,6 +39,14 @@ def set_db_gauges(db) -> None:
     from sqlalchemy import func, select
 
     from .models import Hit, Ingested, PushSubscription, User
+    try:
+        # cheap (30s cached): a dead summarizer rung must be visible to Grafana
+        from .summarize import chain_health
+        health = chain_health()
+        if health:
+            G_SUMMARY_RUNGS.set(sum(1 for r in health if r["reachable"]))
+    except Exception as e:  # never fail a scrape over a probe
+        log.warning("summary rung gauge failed: %s", e)
     try:
         with db.session() as s:
             G_USERS.set(s.execute(select(func.count(User.id))).scalar_one())

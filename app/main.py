@@ -317,6 +317,12 @@ def get_mails(request: Request, limit: int = 50):
 
 
 # ---- status + manual poll ---------------------------------------------------
+def _summary_health() -> list[dict]:
+    """LLM rung health, one indirection so tests can stub the probe."""
+    from .summarize import chain_health
+    return chain_health()
+
+
 @app.get("/api/status")
 def status():
     with db.session() as s:
@@ -328,7 +334,10 @@ def status():
         }
         return {"brand": settings.brand_name, "last_uid": st.last_uid if st else None,
                 "last_poll_at": st.last_poll_at.isoformat() if st and st.last_poll_at else None,
-                "summarize_enabled": settings.summarize_enabled, "counts": counts}
+                "summarize_enabled": settings.summarize_enabled,
+                "summary_chain": _summary_health(),
+                "summary_providers_usable": sum(1 for r in _summary_health() if r["reachable"]),
+                "counts": counts}
 
 
 @app.get("/health")

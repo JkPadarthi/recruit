@@ -37,13 +37,14 @@ def test_chain_skips_empty_bases():
 
 
 def test_default_chain_ordered():
-    # P0 local first, then gemma:free, nemotron-super:free, nemotron-ultra:free
-    # (P3 was qwen/qwen3.8-27b:free until its free slug was withdrawn -> 404)
+    # Reversed 2026-11-21: OpenRouter first (fails in ~1s), local Ollama LAST so a
+    # sleeping homelab box cannot delay a summary a public rung could serve.
+    # nemotron-3-super-120b:free was WITHDRAWN (404) and replaced by 3.5-lightning.
     models = [m["model"] for m in DEFAULT_CHAIN]
-    assert models[0] == "gemma4:12b"
-    assert "gemma" in models[1].lower()
-    assert "super" in models[2].lower()      # nvidia/nemotron-3-super-120b-a12b:free
-    assert "ultra" in models[3].lower()      # nvidia/nemotron-3-ultra-550b-a55b:free
+    assert "gemma" in models[0].lower()                 # google/gemma-4-26b-a4b-it:free
+    assert "lightning" in models[1].lower()             # nvidia/nemotron-3.5-lightning:free
+    assert "ultra" in models[2].lower()                 # nvidia/nemotron-3-ultra-550b-a55b:free
+    assert models[-1] == "gemma4:12b"                   # local Ollama, last
 
 
 def test_chain_propagates_key_to_every_provider(monkeypatch):
