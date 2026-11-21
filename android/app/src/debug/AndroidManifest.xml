@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- MERGED INTO DEBUG BUILDS ONLY (src/debug). Nothing here ships in a release APK.
+     See DebugReceiver.kt for the adb commands that drive it. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <receiver
+            android:name=".DebugReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.jkpadarthi.recruit.DEBUG_SCHEDULE" />
+                <action android:name="com.jkpadarthi.recruit.DEBUG_NOTIFY" />
+                <action android:name="com.jkpadarthi.recruit.DEBUG_ALARMS" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

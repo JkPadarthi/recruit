@@ -33,16 +33,20 @@ The web app remains the source of truth. This shell only adds delivery.
 
 ## 2. Build and install
 
-The project needs the Android SDK, so build it on the Mac (not on `bharat`):
+The build needs the Android SDK on **x86_64** — `aapt2`/`r8` are not available for the Pi's
+ARM64, so `bharat` cannot build it. Two working routes:
+
+**A. One command, from here (toolchain already installed on jengas):**
 
 ```bash
-cd android
-# Open this folder in Android Studio (it will offer to create the Gradle wrapper),
-# or with a local wrapper:
-gradle wrapper --gradle-version 8.9
-./gradlew :app:assembleDebug
-adb install -r app/build/outputs/apk/debug/app-debug.apk
+./android/build-on-jengas.sh        # builds on jaswanth@100.99.54.8, drops the APK in ~/Downloads
 ```
+
+**B. Android Studio on the Mac** — open `android/`, let it create the Gradle wrapper, then
+`./gradlew :app:assembleDebug` and `adb install -r app/build/outputs/apk/debug/app-debug.apk`.
+
+The debug build is signed with the debug keystore and installs as
+`com.jkpadarthi.recruit.debug`, so it can live beside a release build.
 
 Then: open the app → log in to Recruit inside it → watch the logs for
 `RecruitApi: token registration -> HTTP 200`.
@@ -74,6 +78,34 @@ notification (no duplicates) and can schedule alarms from the same payload:
 `when_iso` is empty when the sheet row has no readable date **and** time — a guessed alarm is
 worse than none. When present, the app schedules reminders at **T-90** and **T-30** minutes,
 which survive reboot (`BootReceiver`) and fire in Doze.
+
+## 4b. Test the alarm path *without* Firebase (debug build only)
+
+`DebugReceiver` is compiled from `src/debug` and is absent from release APKs. It lets the two
+mechanisms be proven separately — first that a local alarm fires, then that a push arrives.
+
+```bash
+PKG=com.jkpadarthi.recruit.debug
+
+# 1. permission + channel check: post a notification immediately
+adb shell am broadcast -a com.jkpadarthi.recruit.DEBUG_NOTIFY \
+  --es title "Test" --es body "Posted from adb"
+
+# 2. schedule a real deadline alarm 3 minutes out (fires at T-90/T-30 => immediately at T-2:30?)
+#    put when_iso far enough ahead that T-90 is in the near future:
+adb shell am broadcast -a com.jkpadarthi.recruit.DEBUG_SCHEDULE \
+  --es tag dbg-1 \
+  --es when_iso "2026-11-23T14:30:00+05:30" \
+  --es event "HCL Tech Online Test" \
+  --es body "Reporting venue: PRP 713"
+
+# 3. what is armed, and are exact alarms permitted?
+adb shell am broadcast -a com.jkpadarthi.recruit.DEBUG_ALARMS
+adb logcat -s RecruitDebug RecruitAlarms
+```
+
+For a *fast* end-to-end check, pass a `when_iso` ~91 minutes in the future: the T-90 alarm
+lands about a minute later, and the phone can be locked, in Doze, or off-network when it fires.
 
 ## 5. Test without waiting for a CC mail
 
