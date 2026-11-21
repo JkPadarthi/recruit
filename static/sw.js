@@ -13,12 +13,18 @@ self.addEventListener('push', (e) => {
       body: data.body || '',
       icon: '/static/icon-192.png',
       badge: '/static/icon-192.png',
+      // One notification per mail: a re-send (or the same mail arriving on two
+      // devices) REPLACES the existing card instead of stacking duplicates.
+      tag: data.tag || 'recruit',
+      renotify: true,
+      data: { url: data.url || '/dashboard' },
     })
   );
 });
 self.addEventListener('notificationclick', (e) => {
   e.notification.close();
-  e.waitUntil(self.clients.openWindow('/dashboard'));
+  const target = (e.notification.data && e.notification.data.url) || '/dashboard';
+  e.waitUntil(self.clients.openWindow(target));
 });
 
 // Network-first: always fetch live data so the PWA never shows stale feed/hits.

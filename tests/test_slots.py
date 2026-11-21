@@ -283,3 +283,39 @@ async def test_push_body_is_only_the_headline_for_a_matched_user(client, registe
     assert sent[0]["body"] == "HCL Tech Online Test on 23-11-2026 (2:30 pm) - PRP 713"
     assert "Is Scheduled" not in sent[0]["body"]
     assert "📍" not in sent[0]["body"]
+
+
+async def test_push_payload_carries_a_tag_so_resends_replace(client, register, monkeypatch):
+    """Three sends of one mail must collapse to one card, not stack."""
+    from app.main import db as module_db
+    import app.push as push_mod
+
+    await register()
+    await client.post("/api/me/ids", json={"register_id": "K3I6O4I8"})
+    await client.post("/api/push/subscribe",
+                      json={"endpoint": "https://fcm.googleapis.com/fcm/send/TAG", "platform": "web"})
+    sent: list[dict] = []
+    monkeypatch.setattr(push_mod, "vapid_enabled", lambda: True)
+    monkeypatch.setattr(push_mod, "send_to_subscription", lambda sub, payload: sent.append(payload) or True)
+
+    with module_db.session() as s:
+        ing = _seed(s)          # ingest pushes once
+        assert len(sent) == 1
+        sent.clear()
+        for _ in range(3):      # a manual re-send, three times
+            push_mod.notify_targeted(s, ing, {1}, has_ids=True)
+
+    assert len(sent) == 3
+    assert {p["tag"] for p in sent} == {"recruit-1"}, "same mail -> same tag -> OS replaces"
+    assert all(p["url"] == "/dashboard#hits" for p in sent)
+    assert all(p["body"] == "HCL Tech Online Test on 23-11-2026 (2:30 pm) - PRP 713" for p in sent)
+
+
+def _seed(s):
+    """Ingest the HCL-style mail once and return its Ingested row."""
+    from sqlalchemy import select
+    from app.models import Ingested
+    from app.ingest import process_message
+    process_message(_mail_with_xlsx(ROWS, subject=(
+        "HCL Tech Online Test Is Scheduled on 23-11-2026 & 24-11-2026 by 2.15 PM @ PRP")), "9300", s)
+    return s.execute(select(Ingested).where(Ingested.msg_uid == "9300")).scalars().one()

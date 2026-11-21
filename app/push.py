@@ -206,17 +206,17 @@ def notify_targeted(db: Session, ingest, matched_user_ids: set[int], has_ids: bo
         # and reads like a paragraph on a phone lock screen.
         slot = slot_by_user.get(sub.user_id, "")
         user_body = slot_headline(slot, company, subject) if slot else body
+        # `tag` collapses duplicates: one card per mail, re-sends replace it.
+        tag = f"recruit-{ingest.id}"
         if sub.user_id in matched_user_ids:
-            if is_selection:
-                payload = {"title": selection_title, "body": user_body}
-            else:
-                payload = {"title": "✅ You're on the list", "body": user_body}
+            title = selection_title if is_selection else "✅ You're on the list"
         elif has_test:
-            payload = {"title": "🧪 Test link available", "body": user_body}
+            title = "🧪 Test link available"
         elif has_reg:
-            payload = {"title": "📝 Registration open", "body": user_body}
+            title = "📝 Registration open"
         elif ingest.kind == "shortlist":
-            payload = {"title": "📋 New shortlist", "body": user_body}
+            title = "📋 New shortlist"
         else:
-            payload = {"title": "📢 New announcement", "body": user_body}
-        send_to_subscription(sub, payload)
+            title = "📢 New announcement"
+        send_to_subscription(sub, {"title": title, "body": user_body,
+                                   "tag": tag, "url": "/dashboard#hits"})
