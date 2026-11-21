@@ -429,6 +429,14 @@ svg { width: 22px; height: 22px; flex: none; }
 .install-card ol { padding-left: 18px; display: grid; gap: 6px; }
 .install-card li { font-size: 14px; color: var(--ink-2); }
 .install-card strong { color: var(--ink); font-weight: 600; }
+.install-hint {
+  margin: 10px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink-3);
+}
 .install-card .mono { color: var(--saffron); }
 .install-note { margin-top: 4px; }
 
