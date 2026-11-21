@@ -226,13 +226,21 @@ def get_hits(request: Request, unread_only: bool = False):
         out = []
         for h in hits:
             ing = s.get(Ingested, h.ingested_id)
+            summary = _load_summary(ing)
+            # Company for the card header: the summary's field, else read off the
+            # subject, so a deferred-summary row still shows who it is about.
+            company = str((summary or {}).get("company") or "").strip()
+            if not company and ing:
+                from .extract import company_from_subject
+                company = company_from_subject(ing.subject)
             out.append({
                 "id": h.id, "normalized_id": h.normalized_id, "read": h.read_at is not None,
                 "first_seen_at": h.first_seen_at.isoformat() if h.first_seen_at else None,
                 "subject": ing.subject if ing else "",
                 "kind": ing.kind if ing else "",
+                "company": company,
                 "slot": slotmap.get((h.ingested_id, h.normalized_id), ""),
-                "summary": _load_summary(ing),
+                "summary": summary,
             })
         unread = s.execute(
             select(func.count(Hit.id)).where(Hit.user_id == u.id, Hit.read_at.is_(None))

@@ -330,9 +330,16 @@ svg { width: 22px; height: 22px; flex: none; }
 .hit-main { flex: 1; min-width: 0; display: grid; gap: 4px; }
 .hit-id { font-family: var(--font-num); font-weight: 700; font-size: 15px; color: var(--saffron); letter-spacing: 0.02em; }
 .hit:not(.is-unread) .hit-id { color: var(--ink-2); }
+/* header row: your code + the company, same chip style, one line */
+.hit-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.hit-company { font-family: var(--font-num); font-weight: 700; font-size: 15px; letter-spacing: 0.02em; color: var(--ink); }
+.hit:not(.is-unread) .hit-company { color: var(--ink-2); }
 .hit-subj { font-weight: 600; line-height: 1.35; }
 .hit:not(.is-unread) .hit-subj { color: var(--ink-2); font-weight: 500; }
-/* hits lead with the mail summary; the subject line stays in the feed */
+/* the student's own sheet row is the card body — the thing they act on */
+.hit-row { font-size: 14px; line-height: 1.5; margin: 2px 0 0; color: var(--ink); font-variant-numeric: tabular-nums; }
+.hit:not(.is-unread) .hit-row { color: var(--ink-2); }
+/* fallback body when the mail carried no sheet row */
 .hit-summ { font-weight: 600; font-size: 14.5px; line-height: 1.4; margin: 2px 0 0; }
 .hit:not(.is-unread) .hit-summ { color: var(--ink-2); font-weight: 500; }
 

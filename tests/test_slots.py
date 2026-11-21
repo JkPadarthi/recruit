@@ -319,3 +319,22 @@ def _seed(s):
     process_message(_mail_with_xlsx(ROWS, subject=(
         "HCL Tech Online Test Is Scheduled on 23-11-2026 & 24-11-2026 by 2.15 PM @ PRP")), "9300", s)
     return s.execute(select(Ingested).where(Ingested.msg_uid == "9300")).scalars().one()
+
+
+async def test_hits_api_exposes_company_and_prefers_the_sheet_row(client, register):
+    """Card header = ID + company; body = the sheet row, never summary AND row."""
+    from app.main import db as module_db
+    from app.ingest import process_message
+
+    await register()
+    await client.post("/api/me/ids", json={"register_id": "K3I6O4I8"})
+    with module_db.session() as s:
+        process_message(_mail_with_xlsx(ROWS, subject=(
+            "HCL Tech Online Test Is Scheduled on 23-11-2026 & 24-11-2026 by 2.15 PM @ PRP")),
+            "9400", s)
+
+    h = (await client.get("/api/hits")).json()["hits"][0]
+    assert h["normalized_id"] == "K3I6O4I8"
+    assert h["company"] == "HCL Tech"                       # chip next to the ID
+    assert h["slot"].startswith("ApplicationNo.: HCLTFP2461546")   # card body
+    assert "PRP 713" in h["slot"] and "23-11-2026 (2.30 pm)" in h["slot"]

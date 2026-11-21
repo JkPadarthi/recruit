@@ -394,9 +394,11 @@ function renderHitCounts() {
   document.title = (unread ? `(${unread}) ` : '') + document.title.replace(/^\(\d+\) /, '');
 }
 
-// The hits page leads with the mail's SUMMARY (what the process is), not the
-// subject line — the subject is a paragraph and lives in the feed instead.
+// The hits card: YOUR code and the COMPANY share the header row (same chip
+// style), and the body is the sheet row you actually have to act on. The mail
+// summary is only used when there is no sheet row — never both.
 function hitLine(h) {
+  if (h.slot) return h.slot;                        // "ApplicationNo.: … · PRP 713 · Date & Time: …"
   const s = h.summary && h.summary.summary;
   return (s && s.trim()) ? s.trim() : (h.subject || '');
 }
@@ -417,9 +419,11 @@ function renderHits() {
     <div class="hit ${h.read ? '' : 'is-unread'}">
       <span class="hit-dot" aria-hidden="true"></span>
       <div class="hit-main">
-        <span class="hit-id">${escapeHtml(h.normalized_id)}</span>
-        <p class="hit-summ">${escapeHtml(hitLine(h))}</p>
-        ${slotHtml(h.slot ? { [h.normalized_id]: h.slot } : null, false)}
+        <div class="hit-head">
+          <span class="hit-id">${escapeHtml(h.normalized_id)}</span>
+          ${h.company ? `<span class="hit-company">${escapeHtml(h.company)}</span>` : ''}
+        </div>
+        <p class="${h.slot ? 'hit-row' : 'hit-summ'}">${escapeHtml(hitLine(h))}</p>
         <div class="mail-top">${kindTag(h.kind)}<time>${escapeHtml(when(h.first_seen_at))}</time>${h.read ? '' : '<span class="sr-only">unread</span>'}</div>
       </div>
       ${h.read ? '' : `<button class="icon-btn is-good" type="button" data-read="${h.id}" aria-label="Mark as read" title="Mark as read">${icon('check')}</button>`}
