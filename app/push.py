@@ -61,6 +61,11 @@ def send_to_subscription(sub: PushSubscription, payload: dict) -> bool:
             vapid_claims={"sub": settings.vapid_subject, "aud": aud,
                           "iat": int(time.time())},
             ttl=86400, timeout=10,
+            # RFC 8030 urgency. Without it the push is NORMAL priority and Android
+            # Doze is entitled to hold it until the next maintenance window —
+            # measured live: a shortlist push landed 3h34m late on a dozing phone.
+            # "high" tells the push service to wake the device now.
+            headers={"Urgency": "high"},
         )
         log.info("push OK -> user %s endpoint %s", sub.user_id, sub.endpoint[:40])
         from .metrics import PUSH_SENT

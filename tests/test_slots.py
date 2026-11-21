@@ -354,3 +354,28 @@ async def test_feed_slot_uses_house_date_style_too(client, register):
     slot = [m for m in mails if m.get("my_slots")][0]["my_slots"]["K3I6O4I8"]
     assert "23-11-2026 (2:30 pm)" in slot
     assert "2.30 pm" not in slot
+
+
+def test_web_push_requests_high_urgency(monkeypatch):
+    """Normal priority pushes are batched by Android Doze — one landed 3h34m late."""
+    import json
+    import app.push as P
+
+    captured: dict = {}
+    fake_mod = type("M", (), {})()
+    def fake_webpush(**kw):
+        captured.update(kw)
+        return True
+    fake_mod.webpush = fake_webpush
+    fake_mod.WebPushException = type("E", (Exception,), {})
+    monkeypatch.setitem(__import__("sys").modules, "pywebpush", fake_mod)
+    monkeypatch.setattr(P, "vapid_enabled", lambda: True)
+    monkeypatch.setattr(P, "vapid_private_key_arg", lambda: "k")
+
+    sub = type("S", (), {"endpoint": "https://fcm.googleapis.com/fcm/send/x",
+                         "keys_json": json.dumps({"p256dh": "a", "auth": "b"}),
+                         "user_id": 1})()
+    ok = P.send_to_subscription(sub, {"title": "t", "body": "b"})
+    assert ok is True
+    assert captured["headers"]["Urgency"] == "high"
+    assert captured["ttl"] == 86400
