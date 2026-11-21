@@ -43,5 +43,12 @@ ssh "$HOST" "cd ~/$REMOTE && setsid nohup env \
 
 echo "==> fetching APK"
 scp -q "$HOST:~/$REMOTE/build/app/outputs/flutter-apk/$OUT_NAME" "$HOME/Downloads/$LOCAL"
-ls -lh "$HOME/Downloads/$LOCAL"
+# Name it after the version it carries, so a phone full of downloads is readable
+# and the operator can tell which build is installed.
+HERE="$(cd "$(dirname "$0")" && pwd)"
+VERSION="$(grep -m1 '^version:' "$HERE/pubspec.yaml" | sed 's/version: *//; s/+.*//')"
+NAMED="$HOME/Downloads/recruit-v${VERSION}.apk"
+cp -f "$HOME/Downloads/$LOCAL" "$NAMED"
+ls -lh "$NAMED"
+
 echo "==> install: adb install -r $LOCAL   (release is signed with the debug key for now)"
