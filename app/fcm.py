@@ -194,6 +194,11 @@ def send(db: Session, per_user: dict[int, dict[str, str]]) -> dict[str, int]:
                     "notification": {
                         "title": str(message_data.get("title", "Recruit")),
                         "body": str(message_data.get("body", "")),
+                        # Monochrome drawable, NOT the launcher icon: Android paints
+                        # small icons as a white silhouette, so the coloured tile
+                        # icon would show up as a featureless white square.
+                        "icon": "ic_stat_recruit",
+                        "color": "#F4B33D",
                     },
                     "data": message_data,
                     "android": {
@@ -202,6 +207,14 @@ def send(db: Session, per_user: dict[int, dict[str, str]]) -> dict[str, int]:
                         "notification": {
                             "channel_id": "recruit_updates",
                             "tag": str(message_data.get("tag", "recruit")),
+                            "icon": "ic_stat_recruit",
+                            "color": "#F4B33D",
+                            "ticker": str(message_data.get("title", "Shortlist")),
+                            "notification_priority": "PRIORITY_HIGH",
+                            "visibility": "PUBLIC",
+                            # One line in the shade, and Android groups repeat pushes
+                            # under the same tag instead of stacking duplicates.
+                            "notification_count": 1,
                         },
                     },
                 }

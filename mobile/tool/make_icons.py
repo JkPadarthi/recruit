@@ -56,6 +56,29 @@ def draw_mark(size: int, *, tile: bool, pad: float) -> Image.Image:
     return img.resize((size, size), Image.Resampling.LANCZOS)
 
 
+def draw_stat_icon(size: int) -> Image.Image:
+    """Status-bar icon: white on transparent, no tile, no dot.
+
+    The system paints small icons as a white silhouette, so the coloured tile icon
+    turns into a solid white square in the status bar. This is the glyph only.
+    """
+    s = size * SS
+    img = Image.new("RGBA", (s, s), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    inner = s * 0.88
+    font = ImageFont.truetype(str(FONT), int(inner * 1.02))
+    box = d.textbbox((0, 0), "R", font=font)
+    gw, gh = box[2] - box[0], box[3] - box[1]
+    scale = min(inner / gw, inner / gh)
+    if scale < 1:
+        font = ImageFont.truetype(str(FONT), int(font.size * scale))
+        box = d.textbbox((0, 0), "R", font=font)
+        gw, gh = box[2] - box[0], box[3] - box[1]
+    d.text((s / 2 - gw / 2 - box[0], s / 2 - gh / 2 - box[1]), "R",
+           font=font, fill=(255, 255, 255, 255))
+    return img.resize((size, size), Image.Resampling.LANCZOS)
+
+
 def write(img: Image.Image, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     img.save(path, "PNG", optimize=True)
@@ -73,6 +96,11 @@ def main() -> None:
     print("android adaptive foreground (108dp canvas, art inside the safe zone)")
     fg = draw_mark(432, tile=False, pad=0.235)
     write(fg, res / "drawable" / "ic_launcher_foreground.png")
+
+    print("status-bar icon (white silhouette, 24dp nominal)")
+    for folder, px in [("mdpi", 24), ("hdpi", 36), ("xhdpi", 48),
+                       ("xxhdpi", 72), ("xxxhdpi", 96)]:
+        write(draw_stat_icon(px), res / f"drawable-{folder}" / "ic_stat_recruit.png")
 
     print("ios app icons")
     ios = HERE / "ios" / "Runner" / "Assets.xcassets" / "AppIcon.appiconset"

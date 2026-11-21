@@ -5,6 +5,8 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
+import 'theme.dart';
+
 /// Local notifications + exact deadline alarms, Android and iOS.
 ///
 /// This is the capability a browser cannot provide: `zonedSchedule` with
@@ -90,10 +92,19 @@ class Notifier {
         android: AndroidNotificationDetails(
           channel,
           channel == deadlinesChannel ? 'Deadline reminders' : 'Placement updates',
+          channelDescription: channel == deadlinesChannel
+              ? 'T-90 and T-30 reminders for a reporting time from your sheet row'
+              : 'When your code appears in a CDC shortlist',
           importance: Importance.high,
           priority: Priority.high,
           category: alarm ? AndroidNotificationCategory.alarm : null,
           playSound: true,
+          // White silhouette drawable + saffron accent: the same treatment the
+          // server requests, so a foreground and a background push look identical.
+          icon: 'ic_stat_recruit',
+          color: R.saffron,
+          ticker: 'Shortlist',
+          styleInformation: const BigTextStyleInformation(''),
         ),
         iOS: const DarwinNotificationDetails(
           presentAlert: true,
