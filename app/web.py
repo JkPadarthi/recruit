@@ -29,6 +29,19 @@ def landing(request: Request):
         {"brand": settings.brand_name, "authed": _authed(request), "apk": apk_info()})
 
 
+@router.get("/app", response_class=HTMLResponse)
+def app_page(request: Request):
+    """The Android download page.
+
+    Its own page rather than a block inside the login form: a sideload is a decision
+    that needs the three steps spelled out, and burying that under a password field
+    made it read as clutter.
+    """
+    return templates.TemplateResponse(
+        request, "app_download.html",
+        {"brand": settings.brand_name, "authed": _authed(request), "apk": apk_info()})
+
+
 @router.get("/login", response_class=HTMLResponse)
 def login_page(request: Request):
     return templates.TemplateResponse(

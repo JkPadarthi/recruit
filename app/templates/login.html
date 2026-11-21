@@ -1,6 +1,5 @@
 {% extends "base.html" %}
-{% block bodyclass %}auth-page{% include "_getapp.html" %}
-{% endblock %}
+{% block bodyclass %}auth-page{% endblock %}
 {% block title %} · Log in{% endblock %}
 {% block content %}
 <main class="auth">
@@ -64,4 +63,5 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
   btn.disabled = false; btn.classList.remove('is-busy');
 });
 </script>
+{% include "_getapp.html" %}
 {% endblock %}

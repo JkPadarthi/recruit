@@ -484,35 +484,83 @@ svg { width: 22px; height: 22px; flex: none; }
 .hit-ics:hover { background: rgba(244, 179, 61, .10); }
 .hit-ics svg { width: 14px; height: 14px; }
 
-/* Android download card. Deliberately one row on desktop and stacked on a phone,
-   because the button is the only thing that matters here. */
-.getapp {
+/* ─── The app download page (/app) ──────────────────────────────────────────
+   A sideload deserves one screen that states the trade honestly: what it does
+   better than the browser, and the three taps it takes. */
+.app-hero {
+  display: flex;
+  align-items: center;
+  gap: 26px;
+  padding: 56px 0 12px;
+}
+.app-icon {
+  flex: 0 0 auto;
+  width: 92px; height: 92px;
+  border-radius: 22px;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, .38);
+}
+.app-hero-text { min-width: 0; }
+.app-hero .landing-title { font-size: clamp(30px, 5vw, 44px); margin: 0; }
+.app-hero .lead { margin-top: 12px; font-size: 17px; }
+.app-cta {
   display: flex;
   align-items: center;
   gap: 14px;
-  margin: 18px 0 8px;
-  padding: 14px 16px;
-  border-radius: 16px;
-  background: var(--surface, #16211e);
-  border: 1px solid var(--line, rgba(220, 240, 230, .08));
+  margin-top: 22px;
   flex-wrap: wrap;
 }
-.getapp-mark {
-  width: 38px; height: 38px; flex: 0 0 38px;
-  display: grid; place-items: center;
-  border-radius: 12px;
-  background: rgba(244, 179, 61, .12);
-  color: var(--saffron, #f4b33d);
+.app-meta {
+  font-size: 13px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
 }
-.getapp-mark svg { width: 19px; height: 19px; }
-.getapp-body { flex: 1 1 220px; min-width: 0; }
-.getapp-body h2 { margin: 0 0 3px; font-size: 15px; }
-.getapp-body p { margin: 0; font-size: 13px; color: var(--ink-2, #a9b8b1); }
-.getapp-meta { display: block; margin-top: 3px; font-size: 12px; opacity: .75; }
-.getapp-btn { flex: 0 0 auto; }
-.getapp-note {
-  margin: 0 0 18px;
+
+.app-facts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  margin: 44px 0 8px;
+  background: var(--line);
+  border-radius: var(--r-m);
+  overflow: hidden;
+}
+.app-fact { background: var(--surface); padding: 20px 18px; }
+.app-fact svg { width: 20px; height: 20px; color: var(--saffron); margin-bottom: 12px; }
+.app-fact h3 { font-size: 15px; font-weight: 600; margin: 0 0 6px; }
+.app-fact p { font-size: 13.5px; line-height: 1.55; color: var(--ink-3); margin: 0; }
+
+.app-ios { margin-top: 44px; }
+
+/* Compact strip under the login form and on the dashboard — one tappable row. */
+.appstrip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 22px;
+  padding: 11px 13px;
+  border-radius: var(--r-s);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  text-decoration: none;
+  color: inherit;
+  transition: background .15s ease, border-color .15s ease;
+}
+.appstrip:hover { background: var(--surface-2); border-color: var(--line-strong); }
+.appstrip-icon { border-radius: 9px; flex: 0 0 auto; }
+.appstrip-text { flex: 1 1 auto; display: grid; gap: 2px; min-width: 0; }
+.appstrip-text strong { font-size: 14px; font-weight: 600; }
+.appstrip-text em {
+  font-style: normal;
   font-size: 12px;
-  line-height: 1.5;
-  color: var(--ink-3, #74847d);
+  color: var(--ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.appstrip-chev { width: 15px; height: 15px; color: var(--ink-3); flex: 0 0 auto; }
+
+@media (max-width: 620px) {
+  .app-hero { flex-direction: column; align-items: flex-start; gap: 18px; padding-top: 40px; }
+  .app-facts { grid-template-columns: 1fr; }
+  .app-cta .btn { width: 100%; justify-content: center; }
 }

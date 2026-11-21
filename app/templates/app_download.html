@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block bodyclass %}landing-page{% endblock %}
+{% block title %} · Android app{% endblock %}
+{% block content %}
+<main class="landing">
+  <nav class="landing-nav">
+    <a class="brand" href="/">
+      <svg class="brand-mark" aria-hidden="true"><use href="#i-logo"/></svg>
+      <span class="brand-name">{{ brand }}</span>
+    </a>
+    <div class="nav-actions">
+      {% if authed %}
+        <a class="btn btn-ghost btn-sm" href="/dashboard">Dashboard</a>
+      {% else %}
+        <a class="btn btn-ghost btn-sm" href="/login">Log in</a>
+      {% endif %}
+    </div>
+  </nav>
+
+  {% if apk %}
+  <section class="app-hero">
+    <img class="app-icon" src="/static/icon-192.png?v=3" width="92" height="92" alt="">
+    <div class="app-hero-text">
+      <p class="eyebrow">Android · free</p>
+      <h1 class="landing-title">Recruit, as an <span class="accent">app.</span></h1>
+      <p class="lead">
+        The same shortlists — delivered by the phone itself, so they arrive even when
+        the browser is asleep.
+      </p>
+      <div class="app-cta">
+        <a class="btn btn-primary" href="/download" download>Download APK</a>
+        <span class="app-meta">v{{ apk.version }} · {{ apk.size_mb }}&nbsp;MB · Android 8+</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="app-facts" aria-label="What the app does differently">
+    <div class="app-fact">
+      <svg aria-hidden="true"><use href="#i-bell"/></svg>
+      <h3>Arrives on time</h3>
+      <p>Native push through Play Services. Chrome's background freeze can delay a web
+         notification by hours; this can't be frozen the same way.</p>
+    </div>
+    <div class="app-fact">
+      <svg aria-hidden="true"><use href="#i-calendar"/></svg>
+      <h3>Knocks at T-90</h3>
+      <p>An alarm 90 minutes before your reporting time, from your own row in the
+         sheet. Works with the phone locked and the app closed.</p>
+    </div>
+    <div class="app-fact">
+      <svg aria-hidden="true"><use href="#i-hits"/></svg>
+      <h3>One line, no spreadsheet</h3>
+      <p>Company, date, time and room — not a 831-row attachment to scroll at 2&nbsp;am.</p>
+    </div>
+  </section>
+
+  <section class="install">
+    <h2 class="section-title">Installing it</h2>
+    <p class="install-lead">
+      Android asks once, then never again. This is a normal sideload, not a store
+      install — the app is signed the same way either would be.
+    </p>
+    <div class="install-grid">
+      <div class="install-card">
+        <svg class="install-ico" aria-hidden="true"><use href="#i-phone"/></svg>
+        <h3>1 · Download</h3>
+        <ol>
+          <li>Tap <strong>Download APK</strong> above.</li>
+          <li>Chrome shows it in the downloads bar.</li>
+        </ol>
+      </div>
+      <div class="install-card">
+        <svg class="install-ico" aria-hidden="true"><use href="#i-lock"/></svg>
+        <h3>2 · Allow once</h3>
+        <ol>
+          <li>Tap <strong>Open</strong>, then <strong>Settings</strong> if asked.</li>
+          <li>Turn on <strong>Allow from this source</strong>, then back.</li>
+        </ol>
+      </div>
+      <div class="install-card">
+        <svg class="install-ico" aria-hidden="true"><use href="#i-user"/></svg>
+        <h3>3 · Sign in</h3>
+        <ol>
+          <li>Open Recruit and log in with your college email.</li>
+          <li>Allow notifications when it asks — that is the whole app.</li>
+        </ol>
+      </div>
+    </div>
+    <p class="install-note">
+      Build <span class="mono">v{{ apk.version }}</span>, {{ apk.size_mb }}&nbsp;MB.
+      {% if apk.sha256 %}sha256 <span class="mono">{{ apk.sha256[:16] }}…</span>{% endif %}
+      {% if apk.built_at %} · built {{ apk.built_at[:16].replace('T', ' ') }}{% endif %}
+    </p>
+  </section>
+
+  <section class="app-ios">
+    <h2 class="section-title">On an iPhone?</h2>
+    <p class="install-lead">
+      There is no free way to install an app on someone else's iPhone, so iOS stays on
+      the browser: open <strong>recruit.jaswanth.me</strong> in Safari, tap Share →
+      <strong>Add to Home Screen</strong>, and allow notifications. You get every
+      shortlist. For the 90-minute nudge, tap <strong>Add to calendar</strong> on any
+      hit — iOS Calendar fires it natively.
+    </p>
+  </section>
+  {% else %}
+  <section class="landing-hero">
+    <p class="eyebrow">Android</p>
+    <h1 class="landing-title">No build published yet.</h1>
+    <p class="lead">The download will appear here as soon as a build is uploaded.</p>
+    <div class="hero-actions">
+      <a class="btn btn-primary" href="/">Back to Recruit</a>
+    </div>
+  </section>
+  {% endif %}
+</main>
+{% endblock %}

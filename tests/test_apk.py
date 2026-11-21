@@ -50,11 +50,31 @@ async def test_download_is_typed_for_android(client, apk_dir):
 
 
 @pytest.mark.asyncio
-async def test_card_appears_on_the_login_page(client, register, apk_dir):
+async def test_strip_appears_below_the_login_form(client, register, apk_dir):
     _publish(apk_dir)
     html = (await client.get("/login")).text
     assert "Get the Android app" in html
+    assert 'href="/app"' in html
+    # Regression: the include once landed inside the bodyclass block, so the markup
+    # was emitted inside class="..." and the page rendered as garbage.
+    assert html.index("Get the Android app") > html.index('<main class="auth">')
+    assert 'class="auth-page<' not in html
+
+
+@pytest.mark.asyncio
+async def test_the_app_page_explains_the_install(client, apk_dir):
+    _publish(apk_dir)
+    html = (await client.get("/app")).text
+    for needle in ("Download APK", "v1.1.6", "Allow from this source",
+                   "Add to Home Screen", "sha256"):
+        assert needle in html, needle
     assert 'href="/download"' in html
+
+
+@pytest.mark.asyncio
+async def test_the_app_page_says_so_when_nothing_is_published(client, apk_dir):
+    html = (await client.get("/app")).text
+    assert "No build published yet" in html
 
 
 @pytest.mark.asyncio
