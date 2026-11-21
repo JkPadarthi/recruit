@@ -25,10 +25,13 @@ import io.flutter.plugin.common.MethodChannel
  */
 class MainActivity : FlutterActivity() {
 
+    private var channel: MethodChannel? = null
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "recruit/system")
-            .setMethodCallHandler { call, result ->
+        val ch = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "recruit/system")
+        channel = ch
+        ch.setMethodCallHandler { call, result ->
                 when (call.method) {
                     // All permission state lives here, so the Dart side has one
                     // source of truth instead of half a plugin's internals.
@@ -74,6 +77,22 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+    }
+
+    /**
+     * The POST_NOTIFICATIONS dialog runs inside this activity, so no
+     * onPause/onResume fires and Dart would never learn the answer — leaving the
+     * onboarding gate disabled with the permission already granted.
+     */
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray,
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 4101) {
+            channel?.invokeMethod("permissionsChanged", null)
+        }
     }
 
     private fun isBatteryExempt(): Boolean {

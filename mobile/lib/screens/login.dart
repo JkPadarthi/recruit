@@ -82,8 +82,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Icon(Icons.school_outlined, size: 56),
-                  const SizedBox(height: 12),
+                  Center(
+                    child: Image.asset('assets/brand/logo.png', width: 64, height: 64),
+                  ),
+                  const SizedBox(height: 10),
                   Text('Recruit',
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.headlineMedium),

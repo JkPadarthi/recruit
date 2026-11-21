@@ -44,6 +44,28 @@ class Perms {
     return await _ch.invokeMethod<bool>('requestBatteryExemption') ?? false;
   }
 
+  /// Android tells us when the in-process permission dialog is answered.
+  static void onChange(void Function() cb) {
+    _ch.setMethodCallHandler((call) async {
+      if (call.method == 'permissionsChanged') cb();
+      return null;
+    });
+  }
+
+  /// Belt and braces for the same problem: the notification sheet does not pause
+  /// the activity, so wait for the state to flip rather than trusting one event.
+  static Future<bool> requestNotificationsAndWait({
+    Duration timeout = const Duration(seconds: 12),
+  }) async {
+    await requestNotifications();
+    final deadline = DateTime.now().add(timeout);
+    while (DateTime.now().isBefore(deadline)) {
+      await Future<void>.delayed(const Duration(milliseconds: 350));
+      if (await notificationsEnabled()) return true;
+    }
+    return false;
+  }
+
   static Future<bool> isOnboarded() async {
     final sp = await SharedPreferences.getInstance();
     return sp.getBool(_onboardedKey) ?? false;

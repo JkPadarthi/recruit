@@ -21,11 +21,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> with WidgetsBinding
   bool _notif = false;
   bool _exact = false;
   bool _battery = false;
+  bool _batteryUnavailable = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    Perms.onChange(_refresh);
     _refresh();
   }
 
@@ -53,6 +55,20 @@ class _OnboardingScreenState extends State<OnboardingScreen> with WidgetsBinding
     });
   }
 
+  /// A permission page cannot be skipped. Next stays disabled until Android has
+  /// actually granted what that page asks for — which is the whole point of
+  /// explaining it first instead of letting the system sheet fire blind.
+  ///
+  /// Battery is the one exception: a few OEM builds hide the whitelist screen, and
+  /// trapping someone in onboarding because their phone lacks a Settings page would
+  /// be worse than the delay it prevents. If the intent cannot open, we move on.
+  bool get _canAdvance => switch (_page) {
+        1 => _notif,
+        2 => _exact,
+        3 => _battery || _batteryUnavailable,
+        _ => true,
+      };
+
   Future<void> _finish() async {
     await Perms.markOnboarded();
     await widget.onDone();
@@ -79,12 +95,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> with WidgetsBinding
             constraints: const BoxConstraints(maxWidth: R.page),
             child: Column(
               children: [
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: _finish,
-                    style: TextButton.styleFrom(foregroundColor: R.ink3),
-                    child: const Text('Skip', style: R.meta),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(22, 6, 22, 0),
+                  child: Row(
+                    children: [
+                      Image.asset('assets/brand/logo.png', width: 24, height: 24),
+                      const SizedBox(width: 8),
+                      Text('Recruit',
+                          style: R.brand.copyWith(fontSize: 15, color: R.ink2)),
+                    ],
                   ),
                 ),
                 Expanded(
@@ -101,12 +120,18 @@ class _OnboardingScreenState extends State<OnboardingScreen> with WidgetsBinding
                 ),
                 _dots(),
                 const SizedBox(height: 14),
+                if (!_canAdvance)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text('Allow it above to continue',
+                        style: R.meta.copyWith(color: R.ink3)),
+                  ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 18),
                   child: SizedBox(
                     width: double.infinity,
                     child: FilledButton(
-                      onPressed: _next,
+                      onPressed: _canAdvance ? _next : null,
                       child: Padding(
                         padding: const EdgeInsets.symmetric(vertical: 4),
                         child: Text(_page >= 3 ? 'Done' : 'Next'),
@@ -239,7 +264,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> with WidgetsBinding
               onPressed: _notif
                   ? _next
                   : () async {
-                      await Perms.requestNotifications();
+                      await Perms.requestNotificationsAndWait();
                       await _refresh();
                     },
               child: Text(_notif ? 'Continue' : 'Allow notifications'),
@@ -268,12 +293,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> with WidgetsBinding
                     },
               child: Text(_exact ? 'Continue' : 'Open setting'),
             ),
-            if (!_exact)
-              TextButton(
-                onPressed: _next,
-                style: TextButton.styleFrom(foregroundColor: R.ink3),
-                child: const Text('Later', style: R.meta),
-              ),
+
           ],
         ),
         fineprint: 'Without it the reminder still fires, but Android may shift it by a few minutes.',
@@ -293,20 +313,20 @@ class _OnboardingScreenState extends State<OnboardingScreen> with WidgetsBinding
               onPressed: _battery
                   ? _finish
                   : () async {
-                      await Perms.requestBatteryExemption();
+                      final opened = await Perms.requestBatteryExemption();
                       await _refresh();
+                      if (!opened && mounted) {
+                        setState(() => _batteryUnavailable = true);
+                      }
                     },
               child: Text(_battery ? 'Finish' : 'Allow'),
             ),
-            if (!_battery)
-              TextButton(
-                onPressed: _finish,
-                style: TextButton.styleFrom(foregroundColor: R.ink3),
-                child: const Text('Skip — it may still work', style: R.meta),
-              ),
+
           ],
         ),
-        fineprint: 'Optional. Reminders work without it; only delivery of new mail can lag.',
+        fineprint: _batteryUnavailable
+            ? 'This phone does not expose that setting — carrying on without it.'
+            : 'Without it, delivery can lag by hours on phones that kill background apps.',
       );
 
   Widget _dots() => Row(
