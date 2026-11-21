@@ -125,7 +125,8 @@ function initNav() {
 }
 
 // ---- shared state -----------------------------------------------------------
-const state = { me: null, mails: [], mailsKey: '', hits: [], hitsKey: '', filter: 'all' };
+const state = { me: null, mails: [], mailsKey: '', hits: [], hitsKey: '', filter: 'all',
+                expanded: new Set() };   // hit ids whose "Details" panel is open
 
 // ---- me: name, IDs, profile -------------------------------------------------
 async function loadMe() {
@@ -396,11 +397,22 @@ function renderHitCounts() {
 
 // The hits card: YOUR code and the COMPANY share the header row (same chip
 // style), and the body is the sheet row you actually have to act on. The mail
-// summary is only used when there is no sheet row — never both.
+// subject + summary live behind a collapsed "Details" toggle — reachable, never
+// competing with the row.
 function hitLine(h) {
   if (h.slot) return h.slot;                        // "ApplicationNo.: … · PRP 713 · Date & Time: …"
   const s = h.summary && h.summary.summary;
   return (s && s.trim()) ? s.trim() : (h.subject || '');
+}
+
+function hitExtra(h) {
+  const body = hitLine(h);
+  const out = [];
+  const subj = (h.subject || '').trim();
+  const summ = ((h.summary && h.summary.summary) || '').trim();
+  if (subj && subj !== body) out.push(`<p class="hit-extra-subj">${escapeHtml(subj)}</p>`);
+  if (summ && summ !== body) out.push(`<p class="hit-extra-summ">${escapeHtml(summ)}</p>`);
+  return out.join('');
 }
 
 function renderHits() {
@@ -415,7 +427,10 @@ function renderHits() {
       ${noIds ? `<a class="btn btn-primary btn-sm" href="#ids" data-go="ids">${icon('plus')}Add an ID</a>` : ''}</div>`;
     return;
   }
-  box.innerHTML = state.hits.map((h) => `
+  box.innerHTML = state.hits.map((h) => {
+    const extra = hitExtra(h);
+    const open = state.expanded.has(h.id) && extra;
+    return `
     <div class="hit ${h.read ? '' : 'is-unread'}">
       <span class="hit-dot" aria-hidden="true"></span>
       <div class="hit-main">
@@ -425,9 +440,13 @@ function renderHits() {
         </div>
         <p class="${h.slot ? 'hit-row' : 'hit-summ'}">${escapeHtml(hitLine(h))}</p>
         <div class="mail-top">${kindTag(h.kind)}<time>${escapeHtml(when(h.first_seen_at))}</time>${h.read ? '' : '<span class="sr-only">unread</span>'}</div>
+        ${extra ? `<button class="hit-more" type="button" data-more="${h.id}"
+             aria-expanded="${open ? 'true' : 'false'}" aria-controls="hit-extra-${h.id}">${open ? 'Hide details' : 'Details'}</button>
+          <div class="hit-extra" id="hit-extra-${h.id}"${open ? '' : ' hidden'}>${extra}</div>` : ''}
       </div>
       ${h.read ? '' : `<button class="icon-btn is-good" type="button" data-read="${h.id}" aria-label="Mark as read" title="Mark as read">${icon('check')}</button>`}
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 async function loadHits() {
@@ -454,6 +473,18 @@ function initHits() {
   const box = $('hits');
   if (!box) return;
   box.addEventListener('click', (e) => {
+    const more = e.target.closest('[data-more]');
+    if (more) {
+      // Details toggle: flip in place and remember it across polls
+      const id = Number(more.dataset.more);
+      const extra = more.parentElement.querySelector('.hit-extra');
+      const open = extra.hidden;
+      extra.hidden = !open;
+      more.setAttribute('aria-expanded', open ? 'true' : 'false');
+      more.textContent = open ? 'Hide details' : 'Details';
+      if (open) state.expanded.add(id); else state.expanded.delete(id);
+      return;
+    }
     const b = e.target.closest('[data-read]');
     if (b) markRead([Number(b.dataset.read)]);
   });

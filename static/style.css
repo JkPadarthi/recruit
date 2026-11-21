@@ -342,6 +342,21 @@ svg { width: 22px; height: 22px; flex: none; }
 /* fallback body when the mail carried no sheet row */
 .hit-summ { font-weight: 600; font-size: 14.5px; line-height: 1.4; margin: 2px 0 0; }
 .hit:not(.is-unread) .hit-summ { color: var(--ink-2); font-weight: 500; }
+/* "Details" toggle: the mail subject + summary on demand, never competing with the row */
+.hit-more {
+  justify-self: start; margin-top: 2px; padding: 2px 0; border: 0; background: none;
+  color: var(--ink-3); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+  text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 3px;
+}
+.hit-more:hover { color: var(--ink); }
+.hit-more:focus-visible { outline: 2px solid var(--saffron); outline-offset: 2px; border-radius: 4px; }
+.hit-extra {
+  margin-top: 6px; padding: 10px 12px; border-left: 2px solid var(--line-strong);
+  display: grid; gap: 6px; background: rgba(220, 240, 230, 0.02);
+}
+.hit-extra[hidden] { display: none; }
+.hit-extra-subj { font-size: 13.5px; font-weight: 600; line-height: 1.4; margin: 0; }
+.hit-extra-summ { font-size: 13.5px; line-height: 1.5; margin: 0; color: var(--ink-2); }
 
 .empty { padding: 28px 0 8px; display: grid; gap: 14px; justify-items: start; }
 .empty p { color: var(--ink-2); max-width: 36ch; }

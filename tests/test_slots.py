@@ -136,7 +136,7 @@ async def test_hit_api_returns_the_students_own_slot(client, register):
         process_message(_mail_with_xlsx(ROWS), "9002", s)
     hits = (await client.get("/api/hits")).json()["hits"]
     assert hits[0]["normalized_id"] == "K3I6O4I8"
-    assert "PRP 713" in hits[0]["slot"] and "2.30 pm" in hits[0]["slot"]
+    assert "PRP 713" in hits[0]["slot"] and "2:30 pm" in hits[0]["slot"]
 
 
 async def test_feed_only_carries_your_own_rows(client, register):
@@ -337,4 +337,20 @@ async def test_hits_api_exposes_company_and_prefers_the_sheet_row(client, regist
     assert h["normalized_id"] == "K3I6O4I8"
     assert h["company"] == "HCL Tech"                       # chip next to the ID
     assert h["slot"].startswith("ApplicationNo.: HCLTFP2461546")   # card body
-    assert "PRP 713" in h["slot"] and "23-11-2026 (2.30 pm)" in h["slot"]
+    # house date style: the sheet writes 2.30 pm, every surface shows 2:30 pm
+    assert "PRP 713" in h["slot"] and "23-11-2026 (2:30 pm)" in h["slot"]
+
+
+async def test_feed_slot_uses_house_date_style_too(client, register):
+    """Feed, hits and push must all read 2:30 pm — not the sheet's 2.30 pm."""
+    from app.main import db as module_db
+    from app.ingest import process_message
+
+    await register()
+    await client.post("/api/me/ids", json={"register_id": "K3I6O4I8"})
+    with module_db.session() as s:
+        process_message(_mail_with_xlsx(ROWS), "9500", s)
+    mails = (await client.get("/api/mails")).json()["mails"]
+    slot = [m for m in mails if m.get("my_slots")][0]["my_slots"]["K3I6O4I8"]
+    assert "23-11-2026 (2:30 pm)" in slot
+    assert "2.30 pm" not in slot

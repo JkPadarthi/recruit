@@ -212,6 +212,9 @@ def get_hits(request: Request, unread_only: bool = False):
         if unread_only:
             q = q.where(Hit.read_at.is_(None))
         hits = s.execute(q.order_by(Hit.first_seen_at.desc()).limit(200)).scalars().all()
+        # house date style on every surface: the sheet writes "(2.30 pm)", we show
+        # "(2:30 pm)" so the card, the feed and the push read identically
+        from .extract import company_from_subject, pretty_time
         # one query for every row context we might show (no N+1 per hit)
         slotmap: dict[tuple[int, str], str] = {}
         if hits:
@@ -231,7 +234,6 @@ def get_hits(request: Request, unread_only: bool = False):
             # subject, so a deferred-summary row still shows who it is about.
             company = str((summary or {}).get("company") or "").strip()
             if not company and ing:
-                from .extract import company_from_subject
                 company = company_from_subject(ing.subject)
             out.append({
                 "id": h.id, "normalized_id": h.normalized_id, "read": h.read_at is not None,
@@ -239,7 +241,7 @@ def get_hits(request: Request, unread_only: bool = False):
                 "subject": ing.subject if ing else "",
                 "kind": ing.kind if ing else "",
                 "company": company,
-                "slot": slotmap.get((h.ingested_id, h.normalized_id), ""),
+                "slot": pretty_time(slotmap.get((h.ingested_id, h.normalized_id), "")),
                 "summary": summary,
             })
         unread = s.execute(
@@ -292,6 +294,7 @@ def get_mails(request: Request, limit: int = 50):
                                        u.division, u.branch)]
         # Per-user slots: ONLY the rows carrying this user's own codes. Sending all
         # 831 rows of a shortlist sheet would triple the feed payload for nothing.
+        from .extract import pretty_time
         my_ids = {row.normalized_id for row in u.ids}
         slots: dict[int, dict[str, str]] = {}
         if my_ids and visible:
@@ -303,7 +306,7 @@ def get_mails(request: Request, limit: int = 50):
                 )
             ).scalars().all()
             for e in ents:
-                slots.setdefault(e.ingested_id, {})[e.normalized_id] = e.slot
+                slots.setdefault(e.ingested_id, {})[e.normalized_id] = pretty_time(e.slot)
         return {"mails": [
             {"id": i.id, "subject": i.subject, "from": i.from_addr, "date": i.date,
              "kind": i.kind, "eligible_branches": i.eligible_branches,
