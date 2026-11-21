@@ -329,7 +329,7 @@ def get_hits(request: Request, unread_only: bool = False):
         hits = s.execute(q.order_by(Hit.first_seen_at.desc()).limit(200)).scalars().all()
         # house date style on every surface: the sheet writes "(2.30 pm)", we show
         # "(2:30 pm)" so the card, the feed and the push read identically
-        from .extract import company_from_subject, pretty_time
+        from .extract import company_from_subject, pretty_time, slot_deadline
         # one query for every row context we might show (no N+1 per hit)
         slotmap: dict[tuple[int, str], str] = {}
         if hits:
@@ -344,6 +344,7 @@ def get_hits(request: Request, unread_only: bool = False):
         out = []
         for h in hits:
             ing = s.get(Ingested, h.ingested_id)
+            raw_slot = slotmap.get((h.ingested_id, h.normalized_id), "")
             summary = _load_summary(ing)
             # Company for the card header: the summary's field, else read off the
             # subject, so a deferred-summary row still shows who it is about.
@@ -357,6 +358,10 @@ def get_hits(request: Request, unread_only: bool = False):
                 "kind": ing.kind if ing else "",
                 "company": company,
                 "slot": pretty_time(slotmap.get((h.ingested_id, h.normalized_id), "")),
+                # The deadline as an ISO instant, so a client can arm its own alarm
+                # instead of re-parsing the sheet's "(2.30 pm)" text. Empty when the
+                # row has no readable time — the client must not guess.
+                "when_iso": slot_deadline(raw_slot) if raw_slot else "",
                 "summary": summary,
             })
         unread = s.execute(

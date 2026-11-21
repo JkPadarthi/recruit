@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../api.dart';
 import '../models.dart';
+import '../notify.dart';
 import '../theme.dart';
 import 'admin.dart';
 import 'profile.dart';
@@ -144,6 +145,7 @@ class HitsTab extends StatefulWidget {
 class _HitsTabState extends State<HitsTab> {
   List<Hit> _hits = const [];
   final Set<int> _readNow = {};
+  final Set<String> _armed = {};
   bool _loading = true;
   Timer? _poll;
 
@@ -171,8 +173,44 @@ class _HitsTabState extends State<HitsTab> {
       });
       widget.unread.value =
           _hits.where((h) => !h.read && !_readNow.contains(h.id)).length;
+      unawaited(_armAlarms(_hits));
     } catch (_) {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  /// Arm the T-90/T-30 alarms from the list itself.
+  ///
+  /// They used to be armed only inside `handlePushData`, which meant a shortlist whose
+  /// push never arrived (notifications off at the time, phone dead, or the app installed
+  /// after the mail landed) silently had no alarm at all — the one case where the user
+  /// finds out 90 minutes late instead of 90 minutes early.
+  ///
+  /// The tag matches the server's (`recruit-<ingested_id>`), so the alarm ids computed in
+  /// scheduleDeadline collide with the push-armed ones and overwrite them instead of
+  /// double-buzzing. Re-arming on every 20s poll is therefore harmless, and `_armed`
+  /// keeps it cheap.
+  Future<void> _armAlarms(List<Hit> hits) async {
+    final now = DateTime.now();
+    for (final h in hits) {
+      if (h.whenIso.isEmpty) continue;
+      final at = DateTime.tryParse(h.whenIso);
+      if (at == null || !at.isAfter(now)) continue;
+      final key = '${h.id}|${h.whenIso}';
+      if (_armed.contains(key)) continue;
+      _armed.add(key);
+      try {
+        await Notifier.instance.scheduleDeadline(
+          tag: 'recruit-${h.ingestedId}',
+          when: at,
+          event: [h.company, h.kind].where((x) => x.isNotEmpty).join(' ').trim(),
+          body: h.slot,
+        );
+      } catch (_) {
+        // Likely notification permission or exact-alarm permission missing. Forget the
+        // key so the next load tries again once the user grants it.
+        _armed.remove(key);
+      }
     }
   }
 

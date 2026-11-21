@@ -13,6 +13,7 @@ class Hit {
     required this.slot,
     this.summary,
     this.registerId,
+    this.whenIso = '',
   });
 
   final int id;
@@ -23,6 +24,10 @@ class Hit {
   final String kind;
   final String company;
   final String slot; // the student's own sheet row
+
+  /// The reporting time as an ISO instant, straight from the server's own parse of the
+  /// sheet row. Empty when the row has no readable time — never guess one locally.
+  final String whenIso;
   final Map<String, dynamic>? summary;
   final String? registerId;
 
@@ -39,6 +44,7 @@ class Hit {
             ? j['summary'] as Map<String, dynamic>
             : null,
         registerId: j['normalized_id'] as String?,
+        whenIso: '${j['when_iso'] ?? ''}',
       );
 
   /// "ApplicationNo.: HCLTFP2461546 · Skill Stack: … · Venue: …" -> pairs.
