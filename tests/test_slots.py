@@ -379,3 +379,39 @@ def test_web_push_requests_high_urgency(monkeypatch):
     assert ok is True
     assert captured["headers"]["Urgency"] == "high"
     assert captured["ttl"] == 86400
+
+
+async def test_push_happens_before_the_summary_runs(client, register, monkeypatch):
+    """The notification must not wait on an LLM. Measured 69s of delay that way."""
+    import types
+    from app.main import db as module_db
+    import app.ingest as ing_mod
+    import app.push as push_mod
+
+    order: list[str] = []
+    await register()
+    await client.post("/api/me/ids", json={"register_id": "K3I6O4I8"})
+    await client.post("/api/push/subscribe",
+                      json={"endpoint": "https://fcm.googleapis.com/fcm/send/ORDER", "platform": "web"})
+    monkeypatch.setattr(push_mod, "vapid_enabled", lambda: True)
+    monkeypatch.setattr(push_mod, "send_to_subscription",
+                        lambda sub, payload: order.append("push") or True)
+    # summarize ON, but stubbed out — no network, just an ordering marker
+    monkeypatch.setattr(ing_mod, "settings",
+                        types.SimpleNamespace(summarize_enabled=True))
+    def fake_summarize(ingest, subject, body):
+        order.append("summarize")
+        ingest.summary_status = "ok"
+    monkeypatch.setattr(ing_mod, "_maybe_summarize", fake_summarize)
+
+    with module_db.session() as s:
+        ing_mod.process_message(_mail_with_xlsx(ROWS), "9700", s)
+
+    assert order == ["push", "summarize"], f"push must come first, got {order}"
+
+
+def test_celebration_title_falls_back_to_subject_company():
+    """No summary yet -> read the company off the subject instead of dropping it."""
+    from app.extract import company_from_subject
+    assert company_from_subject("Congratulations!! Zoho selection list 2027 Batch") == "Zoho"
+    assert company_from_subject("Kind Attn: Accenture shortlisted students!!") == "Accenture"

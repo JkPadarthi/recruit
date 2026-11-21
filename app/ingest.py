@@ -175,9 +175,6 @@ def process_message(raw: bytes, msg_uid: str, db: Session, folder: str = "INBOX"
     db.add(ingest)
     db.flush()
 
-    if settings.summarize_enabled:
-        _maybe_summarize(ingest, subject, body)
-
     for ident in sorted(extracted):
         db.add(Entry(ingested_id=ingest.id, normalized_id=ident, original=ident,
                      slot=sheet_slots.get(ident, "")))
@@ -196,6 +193,13 @@ def process_message(raw: bytes, msg_uid: str, db: Session, folder: str = "INBOX"
     MAILS_INGESTED.labels(kind).inc()
     from .push import notify_targeted
     notify_targeted(db, ingest, matched_user_ids, has_ids=bool(extracted))
+
+    # SUMMARY LAST, on purpose. It feeds the feed card only; running it before
+    # matching+push made the notification wait on an LLM (measured 69s when the
+    # chain was broken, 12s when healthy). The push must never depend on a model.
+    if settings.summarize_enabled:
+        _maybe_summarize(ingest, subject, body)
+        db.commit()
     return kind
 
 

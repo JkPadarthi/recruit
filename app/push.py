@@ -199,7 +199,10 @@ def notify_targeted(db: Session, ingest, matched_user_ids: set[int], has_ids: bo
     # FINAL selection (offer / selected) gets a celebration, not the flat
     # "on the list" line. Company pulled from the summary when available.
     is_selection = getattr(ingest, "outcome", "") == "selection"
-    company = _company_from_summary(ingest)
+    # The summary is computed AFTER the push now, so it may be empty here — read
+    # the company off the subject as a fallback so the celebration still names it.
+    from .extract import company_from_subject
+    company = _company_from_summary(ingest) or company_from_subject(subject)
     selection_title = (f"🎉🎊 CONGRATULATIONS — you got selected for {company}!"
                        if company else
                        "🎉🎊 CONGRATULATIONS — you got selected!")
