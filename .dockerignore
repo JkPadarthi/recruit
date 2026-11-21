@@ -1,3 +1,5 @@
+# Flutter client builds on jengas/Mac; not part of the server image
+mobile/
 # The Android shell is built on a Mac (needs the SDK); keep it out of the image
 # build context so deploys stay small and fast.
 android/
