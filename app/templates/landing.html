@@ -54,48 +54,58 @@
   </ol>
 
   <section class="install" aria-labelledby="install-title">
-    <h2 class="section-title" id="install-title">Install it as an app</h2>
+    <h2 class="section-title" id="install-title">Getting it on your phone</h2>
     <p class="install-lead">
-      Recruit works in any browser, but phones only deliver push notifications to
-      installed apps. It takes about 15 seconds.
+      Phones only deliver push notifications to installed apps — a browser tab will not
+      wake you at 2&nbsp;am.
     </p>
 
     <div class="install-grid">
+      {% if apk %}
+      <div class="install-card install-card--app">
+        <svg class="install-ico" aria-hidden="true"><use href="#i-phone"/></svg>
+        <h3>Android</h3>
+        <ol>
+          <li>Tap <strong>Get the APK</strong> below</li>
+          <li>Allow installs from Chrome once</li>
+          <li>Sign in and allow notifications</li>
+        </ol>
+        <a class="btn btn-primary btn-sm install-btn" href="/app">Get the APK</a>
+      </div>
+      {% else %}
       <div class="install-card">
         <svg class="install-ico" aria-hidden="true"><use href="#i-phone"/></svg>
         <h3>Android · Chrome</h3>
         <ol>
           <li>Open <span class="mono">{{ request.url.hostname }}</span> in Chrome</li>
-          <li>Tap the <strong>Install</strong> chip that slides up from the bottom — or the
-              install icon at the right of the address bar</li>
-          <li>No chip? Tap the <strong>⋮</strong> menu at the right end of Chrome's toolbar
-              → <strong>Install app</strong></li>
+          <li>Tap <strong>Install</strong> when Chrome offers it</li>
+          <li>Open the new icon and allow notifications</li>
         </ol>
-        <p class="install-hint">
-          The menu is <strong>bottom-right</strong> on newer Chrome and
-          <strong>top-right</strong> on older builds — it moved, so look at the toolbar,
-          not a fixed corner. Samsung Internet: <strong>☰ → Add page to → Home screen</strong>.
-        </p>
       </div>
+      {% endif %}
+
       <div class="install-card">
         <svg class="install-ico" aria-hidden="true"><use href="#i-phone"/></svg>
         <h3>iPhone · Safari</h3>
         <ol>
           <li>Open <span class="mono">{{ request.url.hostname }}</span> in Safari</li>
-          <li>Tap <strong>Share</strong> (the box with an arrow)</li>
+          <li>Tap <span class="kbd"><svg aria-hidden="true"><use href="#i-share"/></svg></span>
+              <strong>Share</strong> at the bottom</li>
           <li>Tap <strong>Add to Home Screen</strong>, then <strong>Add</strong></li>
         </ol>
       </div>
+
       <div class="install-card">
         <svg class="install-ico" aria-hidden="true"><use href="#i-laptop"/></svg>
-        <h3>Desktop · Chrome / Edge</h3>
+        <h3>Desktop</h3>
         <ol>
-          <li>Click the <strong>install icon</strong> at the right end of the address bar</li>
-          <li>Or <strong>⋮</strong> → <strong>Cast, save and share</strong> →
-              <strong>Install page as app</strong></li>
+          <li>Click the <strong>install icon</strong> at the right of the address bar</li>
           <li>It opens in its own window</li>
         </ol>
-        <p class="install-hint">Edge: <strong>… → Apps → Install this site as an app</strong>.</p>
+        <p class="install-hint">
+          Chrome: <span class="kbd"><svg aria-hidden="true"><use href="#i-menu"/></svg></span>
+          → <strong>Cast, save and share</strong> → <strong>Install page as app</strong>.
+        </p>
       </div>
     </div>
 

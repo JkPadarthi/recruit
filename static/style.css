@@ -429,6 +429,21 @@ svg { width: 22px; height: 22px; flex: none; }
 .install-card ol { padding-left: 18px; display: grid; gap: 6px; }
 .install-card li { font-size: 14px; color: var(--ink-2); }
 .install-card strong { color: var(--ink); font-weight: 600; }
+.install-card--app { background: linear-gradient(180deg, rgba(244,179,61,.06), transparent 60%), var(--surface); }
+.install-btn { margin-top: 14px; }
+/* An inline icon where a character used to be: ⋮ rendered as ":" in some fonts. */
+.kbd {
+  display: inline-grid;
+  place-items: center;
+  width: 22px; height: 22px;
+  vertical-align: -5px;
+  margin-right: 2px;
+  border-radius: 6px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  color: var(--ink-2);
+}
+.kbd svg { width: 13px; height: 13px; }
 .install-hint {
   margin: 10px 0 0;
   padding-top: 10px;
