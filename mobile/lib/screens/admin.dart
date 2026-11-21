@@ -33,11 +33,12 @@ class _AdminScreenState extends State<AdminScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final results = await Future.wait([
+      // Heterogeneous futures, so wait on Object and narrow explicitly.
+      final results = await Future.wait<Object>([
         widget.api.adminStats(),
         widget.api.adminResetRequests(),
       ]);
-      final s = results[0];
+      final s = results[0] as Map<String, dynamic>;
       final reqs = results[1] as List<Map<String, dynamic>>;
       if (!mounted) return;
       setState(() {
@@ -68,8 +69,7 @@ class _AdminScreenState extends State<AdminScreen> {
     }
   }
 
-  Future<void> _makeLink(Map<String, dynamic> req) async {
-    final userId = (req['user_id'] as num).toInt();
+  Future<void> _makeLinkFor(int userId, String email) async {
     setState(() => _busy = true);
     try {
       final r = await widget.api.adminResetLink(userId);
@@ -77,12 +77,28 @@ class _AdminScreenState extends State<AdminScreen> {
       if (!mounted) return;
       setState(() {
         _links[userId] = url;
-        _note = 'Link for ${req['email']} is valid ${r['expires_in_min']} min.';
+        _note = 'Link for $email is valid ${r['expires_in_min']} min.';
       });
     } on ApiException catch (e) {
       if (mounted) setState(() => _note = e.detail);
     } catch (e) {
       if (mounted) setState(() => _note = 'Could not create a link: $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _testPushTo(int userId, String email) async {
+    setState(() => _busy = true);
+    try {
+      final r = await widget.api.adminTestPush(userId);
+      if (!mounted) return;
+      setState(() => _note =
+          'Test to $email: sent to ${r['sent'] ?? 0} of ${r['live_devices'] ?? 0} live device(s).');
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _note = e.detail);
+    } catch (e) {
+      if (mounted) setState(() => _note = 'Push failed: $e');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -218,6 +234,27 @@ class _AdminScreenState extends State<AdminScreen> {
         ),
       );
 
+  Widget _linkBox(String link) => Padding(
+        padding: const EdgeInsets.only(top: 6, right: 4),
+        child: Row(
+          children: [
+            Expanded(
+              child: SelectableText(link,
+                  style: R.code.copyWith(fontSize: 11, color: R.ink2), maxLines: 2),
+            ),
+            IconButton(
+              visualDensity: VisualDensity.compact,
+              tooltip: 'Copy link',
+              onPressed: () async {
+                await Clipboard.setData(ClipboardData(text: link));
+                if (mounted) setState(() => _note = 'Link copied.');
+              },
+              icon: const Icon(Icons.copy_rounded, size: 16, color: R.saffron),
+            ),
+          ],
+        ),
+      );
+
   Widget _requestRow(Map<String, dynamic> r) {
     final userId = (r['user_id'] as num?)?.toInt() ?? 0;
     final age = (r['age_min'] as num?)?.toInt() ?? 0;
@@ -240,33 +277,13 @@ class _AdminScreenState extends State<AdminScreen> {
               const SizedBox(width: 4),
               if (link == null)
                 TextButton(
-                  onPressed: _busy ? null : () => _makeLink(r),
+                  onPressed: _busy ? null : () => _makeLinkFor(userId, '${r['email'] ?? ''}'),
                   style: TextButton.styleFrom(foregroundColor: R.saffron),
                   child: const Text('Create link', style: R.meta),
                 ),
             ],
           ),
-          if (link != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 6, right: 4),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: SelectableText(link,
-                        style: R.code.copyWith(fontSize: 11, color: R.ink2),
-                        maxLines: 2),
-                  ),
-                  IconButton(
-                    visualDensity: VisualDensity.compact,
-                    onPressed: () async {
-                      await Clipboard.setData(ClipboardData(text: link));
-                      if (mounted) setState(() => _note = 'Link copied.');
-                    },
-                    icon: const Icon(Icons.copy_rounded, size: 16, color: R.saffron),
-                  ),
-                ],
-              ),
-            ),
+          if (link != null) _linkBox(link),
         ],
       ),
     );
@@ -300,6 +317,31 @@ class _AdminScreenState extends State<AdminScreen> {
               Text('$devices device${devices == 1 ? "" : "s"}', style: R.meta),
             ],
           ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              TextButton.icon(
+                onPressed: _busy || devices == 0
+                    ? null
+                    : () => _testPushTo((u['id'] as num).toInt(), '${u['email'] ?? ''}'),
+                icon: const Icon(Icons.notifications_active_outlined, size: 15),
+                style: TextButton.styleFrom(
+                    foregroundColor: R.saffron, visualDensity: VisualDensity.compact),
+                label: const Text('Test', style: R.meta),
+              ),
+              TextButton.icon(
+                onPressed: _busy
+                    ? null
+                    : () => _makeLinkFor((u['id'] as num).toInt(), '${u['email'] ?? ''}'),
+                icon: const Icon(Icons.key_rounded, size: 15),
+                style: TextButton.styleFrom(
+                    foregroundColor: R.ink2, visualDensity: VisualDensity.compact),
+                label: const Text('Reset', style: R.meta),
+              ),
+            ],
+          ),
+          if (_links[(u['id'] as num).toInt()] != null)
+            _linkBox(_links[(u['id'] as num).toInt()]!),
           if (ids.isNotEmpty) ...[
             const SizedBox(height: 6),
             Wrap(
