@@ -74,51 +74,151 @@ def extract_urls(text: str) -> list[str]:
     return seen
 
 
-def extract_ids_from_csv(path) -> set[str]:
-    out: set[str] = set()
-    with open(path, newline="", encoding="utf-8", errors="replace") as f:
-        for row in csv.reader(f):
-            for cell in row:
-                out |= extract_ids(str(cell))
-    return out
+def _cell_text(value) -> str:
+    if value is None:
+        return ""
+    return re.sub(r"\s+", " ", str(value)).strip()
 
 
-def extract_ids_from_xlsx(path) -> set[str]:
-    from openpyxl import load_workbook
-    out: set[str] = set()
-    wb = load_workbook(path, read_only=True, data_only=True)
-    try:
-        for ws in wb.worksheets:
-            for row in ws.iter_rows(values_only=True):
-                for cell in row:
-                    if cell is None:
-                        continue
-                    out |= extract_ids(str(cell))
-    finally:
-        wb.close()
-    return out
+def _iter_spreadsheet_rows(path) -> list[list[str]]:
+    """Every row of a spreadsheet/csv as a list of stripped cell strings."""
+    lower = str(path).lower()
+    rows: list[list[str]] = []
+    if lower.endswith(".xlsx"):
+        from openpyxl import load_workbook
+        wb = load_workbook(path, read_only=True, data_only=True)
+        try:
+            for ws in wb.worksheets:
+                for row in ws.iter_rows(values_only=True):
+                    rows.append([_cell_text(c) for c in row])
+        finally:
+            wb.close()
+        return rows
+    if lower.endswith(".xls"):
+        import xlrd
+        wb = xlrd.open_workbook(str(path))
+        for sh in wb.sheets():
+            for r in range(sh.nrows):
+                rows.append([_cell_text(c) for c in sh.row_values(r)])
+        return rows
+    if lower.endswith(".csv"):
+        with open(path, newline="", encoding="utf-8", errors="replace") as f:
+            for row in csv.reader(f):
+                rows.append([_cell_text(c) for c in row])
+        return rows
+    return rows
 
 
-def extract_ids_from_xls(path) -> set[str]:
-    import xlrd
-    out: set[str] = set()
-    wb = xlrd.open_workbook(path)
-    for sh in wb.sheets():
-        for r in range(sh.nrows):
-            for cell in sh.row_values(r):
-                out |= extract_ids(str(cell))
-    return out
+# A header row names columns ("Neo ID", "Reporting venue", "Date & Time").
+# A data row is the thing we must never mistake for one: it carries a code.
+_HEADER_TOKENS = ("id", "no", "name", "date", "time", "venue", "stack", "skill",
+                  "branch", "course", "roll", "application", "report", "company")
+_SERIAL_LABELS = ("s no", "s.no", "sno", "sl no", "sl.no", "serial")
+
+
+def _looks_like_header(row: list[str]) -> bool:
+    cells = [c for c in row if c]
+    if len(cells) < 2:
+        return False
+    if any(extract_ids(c) for c in cells):  # a header never carries a code
+        return False
+    hits = sum(1 for c in cells if any(t in c.lower() for t in _HEADER_TOKENS))
+    return hits >= 2
+
+
+def _find_header_row(rows: list[list[str]]) -> tuple[int, list[str]]:
+    for i, row in enumerate(rows[:5]):
+        if _looks_like_header(row):
+            return i, row
+    return -1, []
+
+
+def _is_serial(label: str) -> bool:
+    low = label.strip().lower()
+    return bool(low) and (low.startswith("#") or any(s in low for s in _SERIAL_LABELS))
+
+
+def _row_context(row: list[str], id_cols: list[int], headers: list[str]) -> str:
+    """The slot printed on the same row as a code, label-qualified and capped:
+    'ApplicationNo.: HCLTFP2461546 · Skill Stack: Java (CSE/IT/EEE/ECE) ·
+     Reporting venue: PRP 713 · Date & Time: 23-11-2026 (2.30 pm)'."""
+    parts: list[str] = []
+    for i, cell in enumerate(row):
+        if i in id_cols or not cell:
+            continue
+        label = headers[i] if i < len(headers) else ""
+        if label and _is_serial(label) and cell.isdigit():
+            continue  # row number, not information
+        if not label and cell.isdigit() and len(cell) <= 3:
+            continue  # bare serial with no header to explain it
+        parts.append(f"{label}: {cell}" if label else cell)
+    return " · ".join(parts)[:200]
+
+
+def extract_from_spreadsheet(path) -> tuple[set[str], dict[str, str]]:
+    """(every id in the file, {id: row context}) from ONE read of the attachment.
+
+    The row context is the whole point: extract_ids() alone throws the row away,
+    so a shortlist code arrived with no idea of when/where that student reports."""
+    ids: set[str] = set()
+    slots: dict[str, str] = {}
+    rows = _iter_spreadsheet_rows(path)
+    for row in rows:
+        for cell in row:
+            ids |= extract_ids(cell)
+    hdr_idx, headers = _find_header_row(rows)
+    for ri, row in enumerate(rows):
+        if ri == hdr_idx:
+            continue
+        id_cols: list[int] = []
+        row_ids: list[str] = []
+        for ci, cell in enumerate(row):
+            found = extract_ids(cell)
+            if found:
+                id_cols.append(ci)
+                row_ids.extend(sorted(found))
+        if not row_ids:
+            continue
+        ctx = _row_context(row, id_cols, headers)
+        if not ctx:
+            continue
+        for code in row_ids:
+            slots.setdefault(code, ctx)  # first row wins on a duplicate code
+    return ids, slots
+
+
+def extract_slots_from_spreadsheet(path) -> dict[str, str]:
+    """{id: 'Reporting venue: PRP 713 · Date & Time: 23-11-2026 (2.30 pm)'}."""
+    return extract_from_spreadsheet(path)[1]
 
 
 def extract_ids_from_spreadsheet(path) -> set[str]:
-    lower = path.lower()
-    if lower.endswith(".xlsx"):
-        return extract_ids_from_xlsx(path)
-    if lower.endswith(".xls"):
-        return extract_ids_from_xls(path)
-    if lower.endswith(".csv"):
-        return extract_ids_from_csv(path)
-    return set()
+    return extract_from_spreadsheet(path)[0]
+
+
+# Push-length view of a stored row context: values of the columns that say WHEN
+# and WHERE, without the labels. '23-11-2026 (2.30 pm) · PRP 713'
+_SLOT_PRIORITY = ("date", "time", "venue", "report", "slot", "session", "hall")
+
+
+def compact_slot(slot: str, limit: int = 70) -> str:
+    """Values of the WHEN/WHERE columns, date before venue, labels dropped."""
+    if not slot:
+        return ""
+    segs = [s.strip() for s in slot.split("·") if s.strip()]
+    cands: list[tuple[int, str]] = []
+    for seg in segs:
+        label, sep, value = seg.partition(": ")
+        if sep:
+            low = label.lower()
+            rank = next((i for i, k in enumerate(_SLOT_PRIORITY) if k in low), None)
+            if rank is not None:
+                cands.append((rank, value.strip()))
+        elif len(seg) <= 24:
+            cands.append((len(_SLOT_PRIORITY), seg))
+    cands.sort(key=lambda t: t[0])
+    picked = [v for _, v in cands[:2] if v] or [segs[0]]
+    return " · ".join(picked)[:limit].rstrip()
 
 
 def classify(subject: str, body: str, extracted: set[str], has_spreadsheet: bool) -> str:

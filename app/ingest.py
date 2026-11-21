@@ -26,8 +26,8 @@ from .extract import (
     SPREADSHEET_EXTS,
     classify,
     detect_outcome,
+    extract_from_spreadsheet,
     extract_ids,
-    extract_ids_from_spreadsheet,
     extract_urls,
     parse_eligible_branches,
 )
@@ -82,12 +82,13 @@ def _body_text(msg) -> str:
     return "\n".join(out)
 
 
-def _spreadsheet_ids_from_msg(msg) -> tuple[set[str], bool]:
-    """(ids from spreadsheet attachments, whether any attachment existed)."""
+def _spreadsheet_from_msg(msg) -> tuple[set[str], dict[str, str], bool]:
+    """(ids from spreadsheet attachments, {id: row context}, whether any attachment existed)."""
     ids: set[str] = set()
+    slots: dict[str, str] = {}
     has_attach = False
     if not msg.is_multipart():
-        return ids, has_attach
+        return ids, slots, has_attach
     for part in msg.walk():
         disp = part.get_content_disposition() or ""
         if not disp.lower().startswith("attachment"):
@@ -105,12 +106,15 @@ def _spreadsheet_ids_from_msg(msg) -> tuple[set[str], bool]:
                 fh.write(raw)
                 tmp = fh.name
             try:
-                ids |= extract_ids_from_spreadsheet(tmp)
+                sheet_ids, sheet_slots = extract_from_spreadsheet(tmp)
             finally:
                 os.unlink(tmp)
+            ids |= sheet_ids
+            for code, ctx in sheet_slots.items():
+                slots.setdefault(code, ctx)
         except Exception as e:
             log.warning("attachment parse failed %s: %s", fn, e)
-    return ids, has_attach
+    return ids, slots, has_attach
 
 
 def _maybe_summarize(ingest: Ingested, subject: str, body: str) -> None:
@@ -150,7 +154,7 @@ def process_message(raw: bytes, msg_uid: str, db: Session, folder: str = "INBOX"
     subject = _dec(msg.get("Subject", ""))[:_HEADER_CUT]
     date = _dec(msg.get("Date", ""))[:80]
     body = _body_text(msg)
-    sheet_ids, has_attach = _spreadsheet_ids_from_msg(msg)
+    sheet_ids, sheet_slots, has_attach = _spreadsheet_from_msg(msg)
     extracted = sheet_ids | extract_ids(body)
     kind = classify(subject, body, extracted, has_attach)
     # FINAL selection vs mere shortlist — persisted so the push (and any
@@ -172,7 +176,8 @@ def process_message(raw: bytes, msg_uid: str, db: Session, folder: str = "INBOX"
         _maybe_summarize(ingest, subject, body)
 
     for ident in sorted(extracted):
-        db.add(Entry(ingested_id=ingest.id, normalized_id=ident, original=ident))
+        db.add(Entry(ingested_id=ingest.id, normalized_id=ident, original=ident,
+                     slot=sheet_slots.get(ident, "")))
     db.commit()
     log.info("uid %s ingested kind=%s ids=%d", msg_uid, kind, len(extracted))
 

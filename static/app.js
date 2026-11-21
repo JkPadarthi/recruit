@@ -293,6 +293,16 @@ function initProfile() {
 }
 
 // ---- feed -------------------------------------------------------------------
+// The student's OWN spreadsheet row ({code: "Reporting venue: PRP 713 · Date &
+// Time: 23-11-2026 (2.30 pm)"}). Subject lines routinely disagree with it —
+// "23 & 24 Nov, 2.15 PM" is the day's earliest session, not your slot.
+function slotHtml(map, withCode) {
+  const keys = Object.keys(map || {});
+  if (!keys.length) return '';
+  return `<div class="slots">${keys.map((k) => `
+    <div class="slot">${withCode ? `<span class="slot-code">${escapeHtml(k)}</span>` : ''}<span class="slot-pin" aria-hidden="true">📍</span><span class="slot-text">${escapeHtml(map[k])}</span></div>`).join('')}</div>`;
+}
+
 function mailHtml(m) {
   const links = (m.links || []).map(safeLink).filter(Boolean)
     .map((l) => `<a class="link-chip" href="${escapeHtml(l.href)}" target="_blank" rel="noopener noreferrer">${icon('link')}<span>${escapeHtml(l.label)}</span></a>`)
@@ -302,6 +312,7 @@ function mailHtml(m) {
     <article class="mail">
       <div class="mail-top">${kindTag(m.kind)}<time>${escapeHtml(when(m.date))}</time></div>
       <h3 class="mail-subj">${escapeHtml(m.subject || '(no subject)')}</h3>
+      ${slotHtml(m.my_slots, true)}
       ${summ ? `<p class="mail-summ">${escapeHtml(summ)}</p><button class="more-btn" type="button" hidden>Show more</button>` : ''}
       ${links ? `<div class="mail-links">${links}</div>` : ''}
     </article>`;
@@ -402,6 +413,7 @@ function renderHits() {
         <span class="hit-id">${escapeHtml(h.normalized_id)}</span>
         <span class="hit-subj">${escapeHtml(h.subject)}</span>
         <div class="mail-top">${kindTag(h.kind)}<time>${escapeHtml(when(h.first_seen_at))}</time>${h.read ? '' : '<span class="sr-only">unread</span>'}</div>
+        ${slotHtml(h.slot ? { [h.normalized_id]: h.slot } : null, false)}
         ${h.summary && h.summary.summary ? `<p class="mail-summ">${escapeHtml(h.summary.summary)}</p>` : ''}
       </div>
       ${h.read ? '' : `<button class="icon-btn is-good" type="button" data-read="${h.id}" aria-label="Mark as read" title="Mark as read">${icon('check')}</button>`}

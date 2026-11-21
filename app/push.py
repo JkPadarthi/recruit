@@ -1,8 +1,10 @@
 """Web Push (VAPID) emitter — notifies a student's devices when a Hit fires.
 
-Decision 7: push carries ONLY the subject line (length-safe); the full LLM
-summary + details live on the dashboard. Covers iOS+Android via the installed
-PWA. No-op when VAPID keys aren't configured (dev/fixtures safe)."""
+Decision 7 (revised): push carries the subject line plus ONE slot line — the
+date/venue/time from the student's own shortlist row ('📍 23-11-2026 (2.30 pm) ·
+PRP 713') — because the subject alone says "23rd & 24th, 2.15 PM" and a student
+cannot act on that. The full LLM summary + links stay on the dashboard. Covers
+iOS+Android via the installed PWA. No-op when VAPID keys aren't configured."""
 from __future__ import annotations
 
 import json
@@ -15,7 +17,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .config import settings
-from .models import Hit, PushSubscription
+from .extract import compact_slot
+from .models import Entry, Hit, PushSubscription, UserId
 
 log = logging.getLogger("recruit.push")
 
@@ -113,6 +116,24 @@ def _company_from_summary(ingest) -> str:
         return ""
 
 
+def _slots_for_users(db: Session, ingested_id: int, user_ids: set[int]) -> dict[int, str]:
+    """{user_id: '23-11-2026 (2.30 pm) · PRP 713'} from each user's own sheet row."""
+    if not user_ids:
+        return {}
+    slots = {e.normalized_id: e.slot
+             for e in db.execute(select(Entry).where(
+                 Entry.ingested_id == ingested_id, Entry.slot != "")).scalars()}
+    if not slots:
+        return {}
+    out: dict[int, str] = {}
+    for uid, code in db.execute(
+            select(UserId.user_id, UserId.normalized_id).where(UserId.user_id.in_(user_ids))):
+        ctx = slots.get(code)
+        if ctx:
+            out.setdefault(uid, compact_slot(ctx))
+    return out
+
+
 def notify_targeted(db: Session, ingest, matched_user_ids: set[int], has_ids: bool) -> None:
     """Notify per the required policy. A user gets a push when ANY of:
       1. their ID is in the mail (matched shortlist)  -> just that user
@@ -163,9 +184,10 @@ def notify_targeted(db: Session, ingest, matched_user_ids: set[int], has_ids: bo
 
     subject = ingest.subject or "a placement update"
     has_link = bool(links)
-    body = subject
-    if has_link:
-        body = f"{subject}\n🔗 has an attached link — open the feed"
+    link_line = "\n🔗 has an attached link — open the feed" if has_link else ""
+    body = f"{subject}{link_line}"
+    # WHERE/WHEN for the students who are actually ON the list — their own row.
+    slot_by_user = _slots_for_users(db, ingest.id, matched_user_ids)
 
     # FINAL selection (offer / selected) gets a celebration, not the flat
     # "on the list" line. Company pulled from the summary when available.
@@ -176,17 +198,20 @@ def notify_targeted(db: Session, ingest, matched_user_ids: set[int], has_ids: bo
                        "🎉🎊 CONGRATULATIONS — you got selected!")
 
     for sub in target:
+        # per-user body: a matched student sees their own slot line
+        slot = slot_by_user.get(sub.user_id, "")
+        user_body = f"{subject}\n📍 {slot}{link_line}" if slot else body
         if sub.user_id in matched_user_ids:
             if is_selection:
-                payload = {"title": selection_title, "body": body}
+                payload = {"title": selection_title, "body": user_body}
             else:
-                payload = {"title": "✅ You're on the list", "body": body}
+                payload = {"title": "✅ You're on the list", "body": user_body}
         elif has_test:
-            payload = {"title": "🧪 Test link available", "body": body}
+            payload = {"title": "🧪 Test link available", "body": user_body}
         elif has_reg:
-            payload = {"title": "📝 Registration open", "body": body}
+            payload = {"title": "📝 Registration open", "body": user_body}
         elif ingest.kind == "shortlist":
-            payload = {"title": "📋 New shortlist", "body": body}
+            payload = {"title": "📋 New shortlist", "body": user_body}
         else:
-            payload = {"title": "📢 New announcement", "body": body}
+            payload = {"title": "📢 New announcement", "body": user_body}
         send_to_subscription(sub, payload)

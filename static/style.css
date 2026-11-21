@@ -286,6 +286,23 @@ svg { width: 22px; height: 22px; flex: none; }
     display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
 }
 .mail-summ.is-open { -webkit-line-clamp: unset; display: block; }
+/* A student's own slot from the attached shortlist sheet — the one line that
+   says when and where they must actually report. Saffron = act on this. */
+.slots { display: grid; gap: 6px; margin-top: 2px; }
+.slot {
+  display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px;
+  padding: 8px 11px; border-radius: var(--r-s);
+  background: var(--saffron-soft); border: 1px solid rgba(244, 179, 61, 0.28);
+  color: var(--ink); font-size: 13px; line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+}
+.slot-pin { font-size: 12px; }
+.slot-text { font-weight: 600; }
+.slot-code {
+  font-family: var(--font-num); font-size: 12px; font-weight: 700;
+  letter-spacing: .02em; color: var(--saffron);
+  padding: 1px 7px; border-radius: 999px; background: rgba(244, 179, 61, 0.16);
+}
 .more-btn { justify-self: start; color: var(--ink-3); font-size: 13px; font-weight: 600; padding: 2px 0; }
 .more-btn:hover { color: var(--ink); }
 .mail-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }

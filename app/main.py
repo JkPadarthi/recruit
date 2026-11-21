@@ -16,7 +16,7 @@ from .config import settings
 from .db import DB, Base
 from .extract import classify, extract_ids
 from .ingest import process_message, poll_once
-from .models import AppState, Hit, Ingested, PushSubscription, User, UserId
+from .models import AppState, Entry, Hit, Ingested, PushSubscription, User, UserId
 from .security import hash_password, make_session_token, verify_password, verify_session_token
 from .util import normalize_id
 
@@ -212,6 +212,17 @@ def get_hits(request: Request, unread_only: bool = False):
         if unread_only:
             q = q.where(Hit.read_at.is_(None))
         hits = s.execute(q.order_by(Hit.first_seen_at.desc()).limit(200)).scalars().all()
+        # one query for every row context we might show (no N+1 per hit)
+        slotmap: dict[tuple[int, str], str] = {}
+        if hits:
+            ents = s.execute(
+                select(Entry).where(
+                    Entry.ingested_id.in_([h.ingested_id for h in hits]),
+                    Entry.normalized_id.in_([h.normalized_id for h in hits]),
+                    Entry.slot != "",
+                )
+            ).scalars().all()
+            slotmap = {(e.ingested_id, e.normalized_id): e.slot for e in ents}
         out = []
         for h in hits:
             ing = s.get(Ingested, h.ingested_id)
@@ -220,6 +231,7 @@ def get_hits(request: Request, unread_only: bool = False):
                 "first_seen_at": h.first_seen_at.isoformat() if h.first_seen_at else None,
                 "subject": ing.subject if ing else "",
                 "kind": ing.kind if ing else "",
+                "slot": slotmap.get((h.ingested_id, h.normalized_id), ""),
                 "summary": _load_summary(ing),
             })
         unread = s.execute(
@@ -270,10 +282,25 @@ def get_mails(request: Request, limit: int = 50):
         visible = [i for i in rows
                    if audience_matches(parse_audience(i.eligible_branches or "", i.subject or ""),
                                        u.division, u.branch)]
+        # Per-user slots: ONLY the rows carrying this user's own codes. Sending all
+        # 831 rows of a shortlist sheet would triple the feed payload for nothing.
+        my_ids = {row.normalized_id for row in u.ids}
+        slots: dict[int, dict[str, str]] = {}
+        if my_ids and visible:
+            ents = s.execute(
+                select(Entry).where(
+                    Entry.ingested_id.in_([i.id for i in visible]),
+                    Entry.normalized_id.in_(my_ids),
+                    Entry.slot != "",
+                )
+            ).scalars().all()
+            for e in ents:
+                slots.setdefault(e.ingested_id, {})[e.normalized_id] = e.slot
         return {"mails": [
             {"id": i.id, "subject": i.subject, "from": i.from_addr, "date": i.date,
              "kind": i.kind, "eligible_branches": i.eligible_branches,
-             "links": _load_links(i), "summary": _load_summary(i), "summary_status": i.summary_status}
+             "links": _load_links(i), "summary": _load_summary(i), "summary_status": i.summary_status,
+             "my_slots": slots.get(i.id, {})}
             for i in visible
         ]}
 

@@ -70,6 +70,9 @@ class Entry(Base):
     ingested_id: Mapped[int] = mapped_column(ForeignKey("ingested.id"), index=True)
     normalized_id: Mapped[str] = mapped_column(String(64), index=True)
     original: Mapped[str] = mapped_column(String(120), default="")
+    # The spreadsheet row this code sat on: date/venue/time/stack, label-qualified.
+    # "" when the mail had no row context (body-only lists, no attachment).
+    slot: Mapped[str] = mapped_column(Text, default="")
 
     ingested: Mapped[Ingested] = relationship(back_populates="entries")
 
