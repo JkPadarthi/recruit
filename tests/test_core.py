@@ -360,3 +360,11 @@ async def test_app_pages_render_with_tabs(client, register):
         assert (root / src).is_file(), f"manifest icon missing on disk: {src}"
         purposes.add(icon["purpose"])
     assert {"any", "maskable"} <= purposes, purposes
+
+
+async def test_hits_is_the_default_landing_tab(client):
+    # Hits is what people open the app to check: after login, and on PWA launch.
+    login = await client.get("/login")
+    assert "location.href = '/dashboard#hits'" in login.text
+    m = (await client.get("/manifest.json")).json()
+    assert m["start_url"] == "/dashboard#hits"
