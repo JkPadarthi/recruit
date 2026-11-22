@@ -33,6 +33,37 @@
         <a class="btn btn-secondary" href="/login">I have an account</a>
       {% endif %}
     </div>
+    <div class="install-strip" aria-label="Install Recruit">
+      {% if apk %}
+      <a class="install-tile" href="/app" data-device="android">
+        <svg class="tile-ico" aria-hidden="true"><use href="#i-phone"/></svg>
+        <span>
+          <b>Android app</b>
+          <span class="tile-sub">v{{ apk.version }} · arrives even when Chrome sleeps</span>
+        </span>
+        <span class="install-tag">Best</span>
+      </a>
+      {% endif %}
+      <a class="install-tile" href="#install-iphone" data-device="iphone">
+        <svg class="tile-ico" aria-hidden="true"><use href="#i-phone"/></svg>
+        <span>
+          <b>iPhone</b>
+          <span class="tile-sub">Safari → Share → Add to Home Screen</span>
+        </span>
+        <span class="install-tag">2 taps</span>
+      </a>
+      <a class="install-tile" href="#install-desktop" data-device="desktop">
+        <svg class="tile-ico" aria-hidden="true"><use href="#i-laptop"/></svg>
+        <span>
+          <b>Desktop</b>
+          <span class="tile-sub">Install icon in the address bar</span>
+        </span>
+        <span class="install-tag">Window</span>
+      </a>
+    </div>
+    <p class="install-strip-note">
+      Install it first — a browser tab cannot wake your phone when a shortlist drops.
+    </p>
   </section>
 
   <ol class="steps" aria-label="How it works">
@@ -54,7 +85,9 @@
   </ol>
 
   <section class="install" aria-labelledby="install-title">
-    <h2 class="section-title" id="install-title">Getting it on your phone</h2>
+    <h2 class="section-title" id="install-title">
+      Getting it on your phone <span class="install-badge">Recommended</span>
+    </h2>
     <p class="install-lead">
       Phones only deliver push notifications to installed apps — a browser tab will not
       wake you at 2&nbsp;am.
@@ -62,7 +95,7 @@
 
     <div class="install-grid">
       {% if apk %}
-      <div class="install-card install-card--app">
+      <div class="install-card install-card--app" id="install-android">
         <svg class="install-ico" aria-hidden="true"><use href="#i-phone"/></svg>
         <h3>Android</h3>
         <p class="install-line">
@@ -84,7 +117,7 @@
       </div>
       {% endif %}
 
-      <div class="install-card">
+      <div class="install-card" id="install-iphone">
         <svg class="install-ico" aria-hidden="true"><use href="#i-phone"/></svg>
         <h3>iPhone · Safari</h3>
         <ol>
@@ -95,7 +128,7 @@
         </ol>
       </div>
 
-      <div class="install-card">
+      <div class="install-card" id="install-desktop">
         <svg class="install-ico" aria-hidden="true"><use href="#i-laptop"/></svg>
         <h3>Desktop</h3>
         <ol>
@@ -118,5 +151,20 @@
     </div>
   </section>
 </main>
+<script>
+// Point at the visitor's own platform instead of making them map "iPhone" to "I am on
+// an iPhone". Purely additive: without JS every tile still links where it should.
+(() => {
+  const ua = navigator.userAgent;
+  const isIOS = /iPhone|iPad|iPod/i.test(ua) ||
+                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const key = /Android/i.test(ua) ? 'android' : (isIOS ? 'iphone' : 'desktop');
+  const tile = document.querySelector(`.install-tile[data-device="${key}"]`);
+  if (!tile) return;
+  tile.classList.add('is-you');
+  const tag = tile.querySelector('.install-tag');
+  if (tag) tag.textContent = 'Your device';
+})();
+</script>
 {% include "_getapp.html" %}
 {% endblock %}

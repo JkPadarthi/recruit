@@ -420,6 +420,51 @@ svg { width: 22px; height: 22px; flex: none; }
 .step strong { font-size: 16px; }
 .step span:last-child { font-size: 14px; color: var(--ink-3); }
 
+/* Install routes, directly under the hero buttons: the page's job is to get the app
+   onto a phone, and a how-to buried below three steps was being missed. */
+.install-strip {
+  margin-top: 26px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.install-strip-note { margin: 10px 0 0; font-size: 13px; color: var(--ink-3); }
+.install-tile {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 15px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-m);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color .15s ease, transform .15s ease, background .15s ease;
+}
+.install-tile:hover { border-color: var(--line-strong); transform: translateY(-1px); }
+.install-tile:focus-visible { outline: 2px solid var(--saffron); outline-offset: 2px; }
+.install-tile .tile-ico { width: 22px; height: 22px; color: var(--ink-2); }
+.install-tile b { display: block; font-size: 14.5px; font-weight: 620; color: var(--ink); }
+.install-tile .tile-sub { display: block; margin-top: 1px; font-size: 12.5px; color: var(--ink-3); }
+.install-tag {
+  font-size: 10.5px; letter-spacing: .07em; text-transform: uppercase; font-weight: 700;
+  color: var(--saffron); background: rgba(244, 179, 61, .14);
+  border-radius: 99px; padding: 3px 8px; white-space: nowrap;
+}
+.install-tile.is-you {
+  border-color: rgba(244, 179, 61, .55);
+  background: linear-gradient(180deg, rgba(244, 179, 61, .07), transparent 70%), var(--surface);
+}
+.install-tile.is-you .tile-ico { color: var(--saffron); }
+.install-badge {
+  margin-left: 8px; vertical-align: 3px;
+  font-size: 10.5px; letter-spacing: .07em; text-transform: uppercase; font-weight: 700;
+  color: var(--saffron); background: rgba(244, 179, 61, .14);
+  border-radius: 99px; padding: 3px 8px;
+}
+.install-card { scroll-margin-top: 20px; }
+
 .install { margin-top: 64px; display: grid; gap: 14px; }
 .install-lead { color: var(--ink-2); max-width: 56ch; }
 .install-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 6px; }
@@ -485,7 +530,7 @@ svg { width: 22px; height: 22px; flex: none; }
 
 /* ─── Small screens ─── */
 @media (max-width: 640px) {
-    .steps, .install-grid { grid-template-columns: 1fr; }
+    .steps, .install-grid, .install-strip { grid-template-columns: 1fr; }
     .landing-hero { padding-top: 48px; }
     .tab-head { flex-wrap: wrap; }
 }
