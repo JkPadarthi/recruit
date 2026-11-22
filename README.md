@@ -2,11 +2,19 @@
 
 A CDC **placement-notification PWA** for VIT: it watches a CDC placement mailbox
 over IMAP, extracts shortlists & registration/test announcements, matches
-register IDs to users, and fires **Web Push** notifications so students find out
-the moment they're shortlisted.
+register IDs and NEO IDs to users, and notifies students the moment they're shortlisted.
 
-Stack: **FastAPI + SQLite + VAPID Web Push**, deployed as Docker Compose (3
-containers: `app`, `worker`, `backup`).
+Three ways to get notified:
+
+- **Web app (PWA):** VAPID Web Push in any browser. Installable on Android and iOS.
+- **Android app** ([`mobile/`](./mobile), Flutter): FCM high-priority push, which
+  still arrives when Chrome is frozen. It also sets local alarms 90 and 30 minutes before
+  your reporting time. The APK is served from the site itself at `/app`.
+- **Calendar file:** each hit with a date and time has *Add to calendar* (`.ics`
+  with a T-90 alarm). On iPhone, this is the only reminder that works without an app.
+
+Stack: **FastAPI + SQLite + VAPID Web Push + FCM**, deployed as Docker Compose (3
+containers: `app`, `worker`, `backup`). Live at <https://recruit.jaswanth.me>.
 
 > **Never commit secrets.** `.env` and `secrets/` are gitignored. The repo
 > contains code + a sanitized `.env.example` only — anyone cloning it gets the
@@ -16,11 +24,11 @@ containers: `app`, `worker`, `backup`).
 
 ## Screenshots
 
-| Feed — every CDC mail, parsed | Your hits — only what matches your IDs | Admin — ingest health |
-|---|---|---|
-| ![Feed](docs/screenshots/feed.png) | ![Your hits](docs/screenshots/your-hits.png) | ![Admin](docs/screenshots/admin.png) |
+| Feed: every CDC mail, parsed | Your hits: only lists with your IDs | Admin: ingest health, resets | Android app download |
+|---|---|---|---|
+| ![Feed](docs/screenshots/feed.png) | ![Your hits](docs/screenshots/your-hits.png) | ![Admin](docs/screenshots/admin.png) | ![Android download page](docs/screenshots/android-download.png) |
 
-Captured from the live deployment. Account identity and the user list are redacted.
+Captured at phone width from a local instance seeded with made-up demo data. No real students or mails are shown.
 
 ---
 
@@ -30,7 +38,7 @@ The engine is simple and deterministic — no magic:
 
 ```
 CDC mailbox ──IMAP──▶ app/ingest.py  ──▶ app/extract.py ──▶ matching ──▶ push
- (imap.gmail.com)     poll worker     (parse body)       (matcher.py)   (web-push)
+ (imap.gmail.com)     poll worker     (parse body)       (matcher.py)   (web-push + FCM)
 ```
 
 1. **`worker.py`** starts a `recruit-worker` container that loops `poll_once(db)`
@@ -43,10 +51,14 @@ CDC mailbox ──IMAP──▶ app/ingest.py  ──▶ app/extract.py ──�
    does **not** ingest the entire backlog).
 4. Each new message is parsed by **`app/extract.py`**: it pulls the subject,
    body, any links, register IDs, and the *Eligible Branches* window.
-5. **`app/matcher.py`** matches extracted register IDs against users, and
-   `app/push.py` blasts a targeted VAPID push per the notification policy.
-6. Everything lands in SQLite tables (`ingested` = feed, `hits` = per-user
-   matches, `users`, `push_subscriptions`, `entries`).
+5. **`app/matcher.py`** matches extracted IDs (register numbers and NEO IDs)
+   against users. For each match, `app/push.py` sends a VAPID push to the user's
+   browsers and `app/fcm.py` sends a data-only FCM message to their phones. When
+   the shortlist row has a date and time, the FCM payload includes `when_iso`, so
+   the app can schedule its T-90 alarm without a network connection.
+6. Everything lands in SQLite tables (`ingested` = feed, `entries` = IDs per mail
+   with their sheet row, `hits` = per-user matches, `users`, `push_subscriptions`,
+   `fcm_tokens`, `password_resets`).
 
 The whole pipeline is **stubbed in tests** so the offline test suite never
 touches the real network:
@@ -118,6 +130,9 @@ python3 -m pytest -q
 | `POLL_INTERVAL_MIN` | Minutes between polls | longer = slower notifications |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | Web Push signing keys | push disabled, app still works |
 | `VAPID_SUBJECT` | `mailto:` identifier for the push app | push may be refused |
+| `FCM_SERVICE_ACCOUNT` | Path to the Firebase service-account JSON (e.g. `/run/secrets/fcm_service_account.json`) | Android app gets no push; web push unaffected |
+| `SMTP_HOST` `SMTP_PORT` `SMTP_USER` `SMTP_PASSWORD` `SMTP_FROM` | Mailer for password-reset links | resets still work: admin hands out the link from the admin panel |
+| `APK_DIR` | Where the published APK + `apk.json` live (default `/data/apk`) | no download card |
 | `SUMMARIZE_ENABLED` `LLM_*` | Optional LLM summaries over feed | summaries off (deterministic core runs either way) |
 | `ENABLE_DEV_ENDPOINT` | Dev-only test endpoints — **keep `0` in prod** | safer |
 | `DATABASE_URL` / `LOG_DIR` / `DB_BACKUP_DIR` | Paths; preset by the Dockerfile to `/data/...` | — |
@@ -160,6 +175,39 @@ docker compose up -d --force-recreate worker
 
 ---
 
+## 5. Mobile app
+
+The Android app lives in **[`mobile/`](./mobile)**. It's a Flutter client with
+one Dart codebase for Android and iOS. It talks to the same API as the web app.
+It doesn't wrap the web UI in a WebView.
+
+| Why an app at all | What it does |
+|---|---|
+| Android freezes Chrome in the background, and a frozen browser can't decrypt a Web Push. One shortlist arrived 3.5 hours late this way. | **FCM push** is delivered by Play Services, which Doze doesn't hold back. |
+| Browsers have no API for scheduled local notifications. | **Exact alarms at T-90 and T-30** before your reporting time. They come from your own row in the sheet, survive a reboot, and need no network. |
+
+Pieces involved:
+
+- **Server:** `app/fcm.py` sends the messages. `POST /api/push/fcm` registers a
+  device token. Needs `FCM_SERVICE_ACCOUNT` (see §3).
+- **Build:** `mobile/build-apk.sh` builds a release APK on an x86_64 host. The
+  Android SDK tools don't run on the Pi's ARM64. `mobile/build-ios.sh` builds the
+  iOS app on a Mac.
+- **Ship:** `scripts/publish_apk.py <apk> --notes "..."` copies the APK into
+  `APK_DIR` and writes `apk.json`. The site then shows a download card and serves
+  `/app` (download page), `/download` (the APK) and `/api/app` (version info).
+  No restart needed, and the binary is never committed to git.
+- **Firebase setup:** `mobile/android/app/google-services.json` (client) plus the
+  service-account JSON on the server. [`android/README.md`](./android/README.md)
+  has the step-by-step Firebase setup and the payload contract.
+
+> [`android/`](./android) is the earlier native Kotlin version, a WebView shell
+> with FCM and alarms. `mobile/` replaced it as the app that ships.
+> `android/README.md` is still the best reference for the Firebase setup and the
+> alarm/push design.
+
+---
+
 ## Docker services
 
 | Service | Image | Runs | Purpose |
@@ -178,10 +226,14 @@ and sit on the external `proxy` network.
 ```
 app/            FastAPI app: main.py (routes), ingest.py (IMAP poll),
                 extract.py (parse), matcher.py (match), push.py (VAPID),
+                fcm.py (Android push), ics.py (calendar files),
+                reset.py + mailer.py (password reset), apk.py (APK download),
                 summarize.py (LLM), models.py, config.py, security.py,
-                db.py, web.py, templates/, util.py
-static/         PWA: app.js, style.css, sw.js, icons
-scripts/        backup.py
+                db.py, web.py, metrics.py, templates/, util.py
+static/         PWA: app.js, ids.js, style.css, sw.js, icons
+mobile/         Flutter app (Android + iOS), build-apk.sh, build-ios.sh
+android/        earlier native Kotlin WebView shell (superseded by mobile/)
+scripts/        backup.py, cd-deploy.sh, publish_apk.py, fcm_send_test.py, ...
 tests/          offline test suite (network stubbed)
 compose.yml     app + worker + backup
 Dockerfile      non-root runtime, /data mounted volumes
@@ -192,6 +244,12 @@ Dockerfile      non-root runtime, /data mounted volumes
 - **Why did X ping / not ping?** — `docker exec recruit-app-1 python3 -c "..."` to
   inspect the SQLite tables (`users`, `ingested`, `hits`, `push_subscriptions`).
 - **Force a poll now** — via the admin "poll now" endpoint (admin panel).
+- **Someone forgot their password** — they use *Forgot your password?* on the
+  login page. Links last 60 minutes and work once. Without SMTP, the request
+  shows up in the admin panel's *Password resets* list, where the admin can copy
+  the link and send it themselves.
+- **Test a user's devices** — the admin panel's *Test* button sends a push to every
+  browser and phone that user has registered.
 - **Migration / rehost** — copy the whole project *including* `data/`
   (the live DB) and `secrets/`, then bring the stack up; see §4 warning about
   not dual-polling.
