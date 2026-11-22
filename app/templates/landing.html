@@ -33,35 +33,38 @@
         <a class="btn btn-secondary" href="/login">I have an account</a>
       {% endif %}
     </div>
-    <div class="install-strip" aria-label="Install Recruit">
-      {% if apk %}
-      <a class="install-tile" href="/app" data-device="android">
-        <svg class="tile-ico" aria-hidden="true"><use href="#i-phone"/></svg>
-        <span class="tile-body">
-          <span class="tile-head"><b>Android app</b><span class="install-tag">Best</span></span>
-          <span class="tile-sub">v{{ apk.version }} · arrives even when Chrome sleeps</span>
-        </span>
-      </a>
-      {% endif %}
-      <a class="install-tile" href="#install-iphone" data-device="iphone">
-        <svg class="tile-ico" aria-hidden="true"><use href="#i-phone"/></svg>
-        <span class="tile-body">
-          <span class="tile-head"><b>iPhone</b><span class="install-tag">2 taps</span></span>
-          <span class="tile-sub">Safari → Share → Add to Home Screen</span>
-        </span>
-      </a>
-      <a class="install-tile" href="#install-desktop" data-device="desktop">
-        <svg class="tile-ico" aria-hidden="true"><use href="#i-laptop"/></svg>
-        <span class="tile-body">
-          <span class="tile-head"><b>Desktop</b><span class="install-tag">Window</span></span>
-          <span class="tile-sub">Install icon in the address bar</span>
-        </span>
-      </a>
-    </div>
-    <p class="install-strip-note">
-      Install it first — a browser tab cannot wake your phone when a shortlist drops.
-    </p>
+
+
   </section>
+
+  <div class="install-strip" aria-label="Install Recruit">
+    {% if apk %}
+    <a class="install-tile" href="/app" data-device="android">
+      <svg class="tile-ico" aria-hidden="true"><use href="#i-phone"/></svg>
+      <span class="tile-body">
+        <span class="tile-head"><b>Android app</b><span class="install-tag">Best</span></span>
+        <span class="tile-sub">v{{ apk.version }} · arrives even when Chrome sleeps</span>
+      </span>
+    </a>
+    {% endif %}
+    <a class="install-tile" href="#install-iphone" data-device="iphone">
+      <svg class="tile-ico" aria-hidden="true"><use href="#i-phone"/></svg>
+      <span class="tile-body">
+        <span class="tile-head"><b>iPhone</b><span class="install-tag">2 taps</span></span>
+        <span class="tile-sub">Safari → Share → Add to Home Screen</span>
+      </span>
+    </a>
+    <a class="install-tile" href="#install-desktop" data-device="desktop">
+      <svg class="tile-ico" aria-hidden="true"><use href="#i-laptop"/></svg>
+      <span class="tile-body">
+        <span class="tile-head"><b>Desktop</b><span class="install-tag">Window</span></span>
+        <span class="tile-sub">Install icon in the address bar</span>
+      </span>
+    </a>
+  </div>
+  <p class="install-strip-note">
+    Install it first — a browser tab cannot wake your phone when a shortlist drops.
+  </p>
 
   <ol class="steps" aria-label="How it works">
     <li class="step">

@@ -420,40 +420,40 @@ svg { width: 22px; height: 22px; flex: none; }
 .step strong { font-size: 16px; }
 .step span:last-child { font-size: 14px; color: var(--ink-3); }
 
-/* Install routes, directly under the hero buttons: the page's job is to get the app
-   onto a phone, and a how-to buried below three steps was being missed. */
+/* Install routes: the same divided band as .steps below it, so the page reads as one
+   rhythm instead of a narrow strip floating above a wide grid. */
 .install-strip {
-  margin-top: 26px;
+  margin-top: 28px;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
+  gap: 1px;
+  background: var(--line);
+  border-radius: var(--r-m);
+  overflow: hidden;
 }
-.install-strip-note { margin: 10px 0 0; font-size: 13px; color: var(--ink-3); }
 .install-tile {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: start;
   gap: 10px 12px;
-  padding: 13px 15px;
+  padding: 18px;
+  min-height: 100%;
   background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--r-m);
   text-decoration: none;
   color: inherit;
-  transition: border-color .15s ease, transform .15s ease, background .15s ease;
+  transition: background .15s ease;
 }
-.install-tile:hover { border-color: var(--line-strong); transform: translateY(-1px); }
-.install-tile:focus-visible { outline: 2px solid var(--saffron); outline-offset: 2px; }
+.install-tile:hover { background: var(--surface-2); }
+.install-tile:focus-visible { outline: 2px solid var(--saffron); outline-offset: -2px; }
 .install-tile .tile-ico { width: 22px; height: 22px; color: var(--ink-2); margin-top: 1px; }
-.install-tile .tile-body { display: grid; gap: 2px; min-width: 0; }
+.install-tile .tile-body { display: grid; gap: 3px; min-width: 0; }
 .install-tile .tile-head {
   display: flex; align-items: center; justify-content: space-between;
   gap: 10px; min-width: 0;
 }
-.install-tile .tile-head b { min-width: 0; }
-.install-tile b { display: block; font-size: 14.5px; font-weight: 620; color: var(--ink); }
+.install-tile .tile-head b { min-width: 0; font-size: 16px; font-weight: 620; color: var(--ink); }
 .install-tile .tile-sub {
-  display: block; min-width: 0; font-size: 12.5px; line-height: 1.45; color: var(--ink-3);
+  display: block; min-width: 0; font-size: 14px; line-height: 1.45; color: var(--ink-3);
   overflow-wrap: anywhere;
 }
 .install-tag {
@@ -462,17 +462,11 @@ svg { width: 22px; height: 22px; flex: none; }
   border-radius: 99px; padding: 3px 8px; white-space: nowrap;
 }
 .install-tile.is-you {
-  border-color: rgba(244, 179, 61, .55);
-  background: linear-gradient(180deg, rgba(244, 179, 61, .07), transparent 70%), var(--surface);
+  background: linear-gradient(180deg, rgba(244, 179, 61, .08), transparent 65%), var(--surface-2);
+  box-shadow: inset 0 0 0 1px rgba(244, 179, 61, .45);
 }
 .install-tile.is-you .tile-ico { color: var(--saffron); }
-.install-badge {
-  margin-left: 8px; vertical-align: 3px;
-  font-size: 10.5px; letter-spacing: .07em; text-transform: uppercase; font-weight: 700;
-  color: var(--saffron); background: rgba(244, 179, 61, .14);
-  border-radius: 99px; padding: 3px 8px;
-}
-.install-card { scroll-margin-top: 20px; }
+.install-strip-note { margin: 10px 0 0; font-size: 13px; color: var(--ink-3); }
 
 .install { margin-top: 64px; display: grid; gap: 14px; }
 .install-lead { color: var(--ink-2); max-width: 56ch; }
