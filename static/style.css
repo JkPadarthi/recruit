@@ -422,8 +422,21 @@ svg { width: 22px; height: 22px; flex: none; }
 
 /* Install routes: the same divided band as .steps below it, so the page reads as one
    rhythm instead of a narrow strip floating above a wide grid. */
+.install-lead-line {
+  margin: 26px 0 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  max-width: 74ch;
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+.install-lead-line svg { width: 18px; height: 18px; flex: none; margin-top: 2px; color: var(--saffron); }
+.install-lead-line b { color: var(--ink); font-weight: 620; }
+
 .install-strip {
-  margin-top: 28px;
+  margin-top: 12px;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 1px;
@@ -461,12 +474,16 @@ svg { width: 22px; height: 22px; flex: none; }
   color: var(--saffron); background: rgba(244, 179, 61, .14);
   border-radius: 99px; padding: 3px 8px; white-space: nowrap;
 }
+/* The band clips to a radius, but the "your device" ring is painted on the tile — so the
+   end tiles have to carry the rounded corners themselves, or the gold stops square where
+   the band curves. */
+.install-tile:first-child { border-top-left-radius: var(--r-m); border-bottom-left-radius: var(--r-m); }
+.install-tile:last-child { border-top-right-radius: var(--r-m); border-bottom-right-radius: var(--r-m); }
 .install-tile.is-you {
   background: linear-gradient(180deg, rgba(244, 179, 61, .08), transparent 65%), var(--surface-2);
   box-shadow: inset 0 0 0 1px rgba(244, 179, 61, .45);
 }
 .install-tile.is-you .tile-ico { color: var(--saffron); }
-.install-strip-note { margin: 10px 0 0; font-size: 13px; color: var(--ink-3); }
 
 .install { margin-top: 64px; display: grid; gap: 14px; }
 .install-lead { color: var(--ink-2); max-width: 56ch; }
@@ -534,6 +551,8 @@ svg { width: 22px; height: 22px; flex: none; }
 /* ─── Small screens ─── */
 @media (max-width: 640px) {
     .steps, .install-grid, .install-strip { grid-template-columns: 1fr; }
+    .install-tile:first-child { border-top-right-radius: var(--r-m); border-bottom-left-radius: 0; }
+    .install-tile:last-child { border-bottom-left-radius: var(--r-m); border-top-right-radius: 0; }
     .landing-hero { padding-top: 48px; }
     .tab-head { flex-wrap: wrap; }
 }
