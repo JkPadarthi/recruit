@@ -385,18 +385,28 @@ class _HitCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(R.rM),
       child: Ink(
         decoration: R.card(),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        // Stack, NOT a Row with CrossAxisAlignment.stretch: inside a ListView the height
+        // is unbounded, so `stretch` asks for an infinite height. Debug shows an
+        // assertion; in a RELEASE build the assert is stripped, the first card's box grows
+        // without limit, and every card after it is pushed off-screen — which is why a
+        // phone showed exactly one hit while the counter said 13.
+        child: Stack(
           children: [
-            // unread marker: a 3px saffron edge, like the PWA's dot but calmer
-            Container(
-              width: 3,
-              decoration: BoxDecoration(
-                color: unread ? R.saffron : Colors.transparent,
-                borderRadius: const BorderRadius.horizontal(left: Radius.circular(R.rM)),
+            if (unread)
+              Positioned(
+                left: 0, top: 0, bottom: 0,
+                child: Container(
+                  width: 3,
+                  decoration: BoxDecoration(
+                    color: R.saffron,
+                    borderRadius:
+                        const BorderRadius.horizontal(left: Radius.circular(R.rM)),
+                  ),
+                ),
               ),
-            ),
-            Expanded(
+            Row(
+              children: [
+                Expanded(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(12, 11, 13, 11),
                 child: Column(
@@ -437,9 +447,11 @@ class _HitCard extends StatelessWidget {
                 ),
               ),
             ),
-            const Padding(
-              padding: EdgeInsets.only(right: 10),
-              child: Icon(Icons.chevron_right_rounded, size: 20, color: R.ink3),
+                const Padding(
+                  padding: EdgeInsets.only(right: 10),
+                  child: Icon(Icons.chevron_right_rounded, size: 20, color: R.ink3),
+                ),
+              ],
             ),
           ],
         ),
