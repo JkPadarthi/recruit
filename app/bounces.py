@@ -27,6 +27,10 @@ from .models import FcmToken, PasswordReset, PushSubscription, User, UserId
 log = logging.getLogger(__name__)
 router = APIRouter()
 
+# Events that mean the address is not reachable. `email.bounced` only counts when Resend
+# says Permanent — a full mailbox is transient and heals.
+DEAD_EVENTS = {"email.bounced", "email.complained", "email.suppressed"}
+
 TOLERANCE_S = 300  # Svix's own default; a replayed old payload is not interesting to us
 
 
@@ -79,6 +83,11 @@ async def resend_webhook(request: Request):
         raise HTTPException(400, "not json")
 
     kind = event.get("type", "")
+    # The webhook is subscribed to everything (delivered, opened, sent, clicked…).
+    # Only three of those mean "this address cannot receive mail"; treating the rest as
+    # bounces would flag every healthy account on its first successful delivery.
+    if kind not in DEAD_EVENTS:
+        return {"ok": True, "ignored": kind}
     data = event.get("data") or {}
     recipients = data.get("to") or []
     if isinstance(recipients, str):
@@ -95,7 +104,8 @@ async def resend_webhook(request: Request):
             u = s.execute(select(User).where(User.email == email)).scalar_one_or_none()
             if u is None:
                 continue
-            if kind == "email.bounced" and hard and not u.email_verified:
+            is_dead = (kind != "email.bounced") or hard
+            if is_dead and not u.email_verified:
                 # Never verified, and now we know why: the address does not exist.
                 _purge(s, u)
                 removed.append(email)

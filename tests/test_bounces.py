@@ -135,3 +135,36 @@ async def test_the_sweep_only_takes_untouched_rows(client):
     assert not _exists("stale@vit.ac.in")
     assert _exists("fresh@vit.ac.in")     # too new
     assert _exists("good@vit.ac.in")      # verified
+
+
+@pytest.mark.asyncio
+async def test_a_delivered_event_flags_nothing(client, secret):
+    """The endpoint is subscribed to delivered/opened/sent too — those are not bounces."""
+    _user("fine@vit.ac.in", verified=1)
+    body = json.dumps({"type": "email.delivered", "data": {"to": ["fine@vit.ac.in"]}}).encode()
+    r = await client.post("/api/webhooks/resend", content=body, headers=_sign(body))
+    assert r.status_code == 200
+    assert r.json()["ignored"] == "email.delivered"
+    with db.session() as s:
+        u = s.execute(select(User).where(User.email == "fine@vit.ac.in")).scalar_one()
+        assert u.email_bounced_at is None
+
+
+@pytest.mark.asyncio
+async def test_a_suppressed_address_loses_its_unverified_account(client, secret):
+    _user("suppressed@vit.ac.in", verified=0)
+    body = json.dumps({"type": "email.suppressed", "data": {"to": ["suppressed@vit.ac.in"]}}).encode()
+    r = await client.post("/api/webhooks/resend", content=body, headers=_sign(body))
+    assert r.status_code == 200
+    assert not _exists("suppressed@vit.ac.in")
+
+
+@pytest.mark.asyncio
+async def test_a_complaint_flags_a_verified_account(client, secret):
+    _user("angry@vit.ac.in", verified=1)
+    body = json.dumps({"type": "email.complained", "data": {"to": ["angry@vit.ac.in"]}}).encode()
+    r = await client.post("/api/webhooks/resend", content=body, headers=_sign(body))
+    assert r.status_code == 200
+    with db.session() as s:
+        u = s.execute(select(User).where(User.email == "angry@vit.ac.in")).scalar_one()
+        assert u.email_bounced_at is not None and u.email_verified == 1
