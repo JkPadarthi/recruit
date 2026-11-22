@@ -338,7 +338,7 @@ class _HitsTabState extends State<HitsTab> {
                 separatorBuilder: (_, _) => const SizedBox(height: 9),
                 itemBuilder: (_, i) {
                   final h = _hits[i];
-                  return _HitCard(
+                  return HitCard(
                     hit: h,
                     unread: !h.read && !_readNow.contains(h.id),
                     onTap: () => _open(h),
@@ -367,8 +367,10 @@ class _HitsTabState extends State<HitsTab> {
       );
 }
 
-class _HitCard extends StatelessWidget {
-  const _HitCard({required this.hit, required this.unread, required this.onTap});
+/// One shortlist. Public so a widget test can prove it lays out inside a list —
+/// the infinite-height bug it once had is invisible to `flutter analyze`.
+class HitCard extends StatelessWidget {
+  const HitCard({super.key, required this.hit, required this.unread, required this.onTap});
 
   final Hit hit;
   final bool unread;
@@ -380,7 +382,12 @@ class _HitCard extends StatelessWidget {
     final date = hit.dateLine;
     final venue = hit.venueLine;
 
-    return InkWell(
+    // The card owns its Material surface: an InkWell that has to reach above the
+    // viewport for one can end up with no ink canvas at all (the reason a widget test
+    // could not lay this card out), and a card is a surface in its own right.
+    return Material(
+      type: MaterialType.transparency,
+      child: InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(R.rM),
       child: Ink(
@@ -410,6 +417,11 @@ class _HitCard extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(12, 11, 13, 11),
                 child: Column(
+                  // mainAxisSize.min is load-bearing: the card sits in a ListView, whose
+                  // items get unbounded height. A default Column fills that infinity
+                  // (Clamped to 100000px), so the first card swallowed the scroll extent
+                  // and every later hit was pushed out of sight.
+                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
@@ -455,6 +467,7 @@ class _HitCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -505,6 +518,11 @@ class _HitSheet extends StatelessWidget {
                 padding: const EdgeInsets.all(14),
                 decoration: R.amberPanel(),
                 child: Column(
+                  // mainAxisSize.min is load-bearing: the card sits in a ListView, whose
+                  // items get unbounded height. A default Column fills that infinity
+                  // (Clamped to 100000px), so the first card swallowed the scroll extent
+                  // and every later hit was pushed out of sight.
+                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     for (final part in hit.slotParts)
