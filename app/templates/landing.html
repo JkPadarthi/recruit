@@ -37,28 +37,25 @@
       {% if apk %}
       <a class="install-tile" href="/app" data-device="android">
         <svg class="tile-ico" aria-hidden="true"><use href="#i-phone"/></svg>
-        <span>
-          <b>Android app</b>
+        <span class="tile-body">
+          <span class="tile-head"><b>Android app</b><span class="install-tag">Best</span></span>
           <span class="tile-sub">v{{ apk.version }} · arrives even when Chrome sleeps</span>
         </span>
-        <span class="install-tag">Best</span>
       </a>
       {% endif %}
       <a class="install-tile" href="#install-iphone" data-device="iphone">
         <svg class="tile-ico" aria-hidden="true"><use href="#i-phone"/></svg>
-        <span>
-          <b>iPhone</b>
+        <span class="tile-body">
+          <span class="tile-head"><b>iPhone</b><span class="install-tag">2 taps</span></span>
           <span class="tile-sub">Safari → Share → Add to Home Screen</span>
         </span>
-        <span class="install-tag">2 taps</span>
       </a>
       <a class="install-tile" href="#install-desktop" data-device="desktop">
         <svg class="tile-ico" aria-hidden="true"><use href="#i-laptop"/></svg>
-        <span>
-          <b>Desktop</b>
+        <span class="tile-body">
+          <span class="tile-head"><b>Desktop</b><span class="install-tag">Window</span></span>
           <span class="tile-sub">Install icon in the address bar</span>
         </span>
-        <span class="install-tag">Window</span>
       </a>
     </div>
     <p class="install-strip-note">
