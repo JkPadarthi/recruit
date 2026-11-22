@@ -128,7 +128,7 @@ function initNav() {
     showTab(a.dataset.go);
     window.scrollTo({ top: 0 });
   });
-  showTab((location.hash || '#feed').slice(1));
+  showTab((location.hash || '#hits').slice(1));
   window.addEventListener('hashchange', () => showTab(location.hash.slice(1)));
 }
 

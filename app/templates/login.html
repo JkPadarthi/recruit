@@ -57,7 +57,7 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({email: email.value, password: password.value}),
     });
-    if (r.ok) { location.href = '/dashboard'; return; }
+    if (r.ok) { location.href = '/dashboard#hits'; return; }
     fail(r.status === 401 ? 'Wrong email or password.'
         : ((await r.json().catch(() => ({}))).detail || 'Login failed — try again.'));
   } catch (_) {

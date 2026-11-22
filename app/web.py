@@ -132,7 +132,7 @@ def manifest():
     return JSONResponse({
         "name": settings.brand_name,
         "short_name": settings.brand_name,
-        "start_url": "/dashboard",
+        "start_url": "/dashboard#hits",
         "display": "standalone",
         "background_color": "#0E1715",
         "theme_color": "#0E1715",
