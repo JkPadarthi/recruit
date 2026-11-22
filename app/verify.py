@@ -22,11 +22,11 @@ import secrets
 
 from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from . import mailer
 from .config import settings
-from .models import User
+from .models import FcmToken, PasswordReset, PushSubscription, User, UserId
 from .security import make_session_token
 
 log = logging.getLogger(__name__)
@@ -180,3 +180,32 @@ def confirm(body: CodeIn, response: Response):
                             secure=settings.session_secure,
                             max_age=settings.session_max_age_sec)
         return {"verified": True, "email": u.email, "id": u.id, "admin": bool(u.is_admin)}
+
+
+def sweep_unverified(hours: int = 24) -> int:
+    """Delete signups that never verified, once they are a day old.
+
+    A bounced or typo'd address creates a row that can never be verified (that is the
+    point of the gate), but it should not sit in the users table for ever. Only untouched
+    rows go: no hits, no devices, no register IDs — nothing a person would miss.
+    """
+    cutoff = _now() - dt.timedelta(hours=hours)
+    removed = 0
+    with _db().session() as s:
+        rows = s.execute(
+            select(User).where(User.email_verified == 0, User.created_at < cutoff)
+        ).scalars().all()
+        for u in rows:
+            if s.execute(select(UserId).where(UserId.user_id == u.id)).first():
+                continue
+            if s.execute(select(FcmToken).where(FcmToken.user_id == u.id)).first():
+                continue
+            if s.execute(select(PushSubscription).where(PushSubscription.user_id == u.id)).first():
+                continue
+            for model in (FcmToken, PushSubscription, PasswordReset, UserId):
+                s.execute(delete(model).where(model.user_id == u.id))
+            log.info("swept unverified account %s (created %s)", u.id, u.created_at)
+            s.delete(u)
+            removed += 1
+        s.commit()
+    return removed

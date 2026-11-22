@@ -56,6 +56,8 @@ from .reset import router as reset_router  # noqa: E402
 app.include_router(reset_router)
 from .verify import router as verify_router  # noqa: E402
 app.include_router(verify_router)
+from .bounces import router as bounces_router  # noqa: E402
+app.include_router(bounces_router)
 
 
 def _current_user(request: Request, s: Session) -> User:
@@ -119,6 +121,41 @@ class TestPushIn(BaseModel):
     body: str = "Test notification"
 
 
+# ---- retired hostnames ------------------------------------------------------
+# Anyone with the old address bookmarked, or an app installed before the move, lands
+# here. Browsers get a page that explains it; API calls get a 308 to the new host so an
+# old client's requests still reach a real server (its cookie will not travel, which is
+# correct — the user signs in again on the new address).
+RETIRED_HOSTS = ("98487840.xyz",)
+CANONICAL_URL = "https://recruit.jaswanth.me"
+
+
+def _is_retired(host_header: str) -> bool:
+    host = (host_header or "").split(":")[0].strip().lower()
+    return any(host == h or host.endswith("." + h) for h in RETIRED_HOSTS)
+
+
+@app.middleware("http")
+async def retired_host_moved(request: Request, call_next):
+    if not _is_retired(request.headers.get("host", "")):
+        return await call_next(request)
+
+    path = request.url.path
+    target = CANONICAL_URL + path + (f"?{request.url.query}" if request.url.query else "")
+    wants_html = "text/html" in request.headers.get("accept", "")
+
+    if request.method in ("GET", "HEAD") and wants_html and not path.startswith("/api/"):
+        from .web import templates
+        return templates.TemplateResponse(
+            request, "moved.html",
+            {"brand": settings.brand_name, "new_url": CANONICAL_URL,
+             "new_domain": CANONICAL_URL.split("//", 1)[1]},
+        )
+    # 308 keeps the method and body, so an old client's POST is not silently turned
+    # into a GET (which is what a 301 would do).
+    return RedirectResponse(target, status_code=308)
+
+
 # ---- the verification gate --------------------------------------------------
 # An unverified account may sign in and read /api/me (it needs to know its own state),
 # but nothing else. The list is a prefix allowlist on purpose: a new data endpoint is
@@ -130,7 +167,8 @@ _VERIFY_EXEMPT_EXACT = {
     "/api/login", "/api/register", "/api/logout", "/api/me",
     "/api/status", "/api/app", "/api/health",
 }
-_VERIFY_EXEMPT_PREFIX = ("/api/verify/", "/api/password/", "/api/push/fcm/unregister")
+_VERIFY_EXEMPT_PREFIX = ("/api/verify/", "/api/password/", "/api/push/fcm/unregister",
+                         "/api/webhooks/")
 
 
 @app.middleware("http")

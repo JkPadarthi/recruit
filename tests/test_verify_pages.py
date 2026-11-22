@@ -29,3 +29,27 @@ async def test_a_verified_account_reaches_the_dashboard(client, register):
     r = await client.get("/dashboard", follow_redirects=False)
     assert r.status_code == 200
     assert "hits-sec" in r.text
+
+
+@pytest.mark.asyncio
+async def test_the_old_host_gets_a_page_that_says_we_moved(client):
+    r = await client.get("/", headers={"Host": "recruit.98487840.xyz", "Accept": "text/html"})
+    assert r.status_code == 200
+    assert "moved" in r.text.lower()
+    assert "recruit.jaswanth.me" in r.text
+
+
+@pytest.mark.asyncio
+async def test_the_old_host_308s_api_calls(client):
+    """A 308 keeps the method — a 301 would turn a POST into a GET and lose the body."""
+    r = await client.get("/api/hits", follow_redirects=False,
+                         headers={"Host": "recruit.98487840.xyz", "Accept": "application/json"})
+    assert r.status_code == 308
+    assert r.headers["location"] == "https://recruit.jaswanth.me/api/hits"
+
+
+@pytest.mark.asyncio
+async def test_the_canonical_host_is_left_alone(client):
+    r = await client.get("/", headers={"Host": "recruit.jaswanth.me", "Accept": "text/html"})
+    assert r.status_code == 200
+    assert "landing-hero" in r.text

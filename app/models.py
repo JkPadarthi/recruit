@@ -29,6 +29,9 @@ class User(Base):
     verify_expires_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     verify_attempts: Mapped[int] = mapped_column(default=0, server_default="0")
     verify_last_sent: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Set when Resend tells us the mailbox bounced. Not a ban — it means mail to this
+    # address (including password resets) is going nowhere, so the admin must know.
+    email_bounced_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     ids: Mapped[list["UserId"]] = relationship(back_populates="user", cascade="all, delete-orphan")

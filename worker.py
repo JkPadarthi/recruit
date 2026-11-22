@@ -14,6 +14,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from app.config import settings  # noqa: E402
 from app.db import DB  # noqa: E402
 from app.ingest import poll_once  # noqa: E402
+from app.verify import sweep_unverified  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("recruit.worker")
@@ -27,12 +28,22 @@ def main() -> None:
     db.create_all()
     interval = max(settings.poll_interval_min, 1) * 60
     log.info("recruit worker started; poll interval %ds", interval)
+    last_sweep = 0.0
     while True:
         try:
             result = poll_once(db)
             log.info("poll: %s", result)
         except Exception as e:
             log.exception("poll failed: %s", e)
+        # Broom for accounts that never verified (typo'd / bouncing addresses).
+        if time.time() - last_sweep > 3600:
+            try:
+                gone = sweep_unverified(hours=24)
+                if gone:
+                    log.info("swept %d unverified account(s)", gone)
+            except Exception as e:
+                log.exception("sweep failed: %s", e)
+            last_sweep = time.time()
         time.sleep(interval)
 
 

@@ -41,6 +41,9 @@ class Settings:
     cdc_mailbox_user: str = field(default_factory=lambda: _env("CDC_MAILBOX_USER", ""))
     cdc_mailbox_token: str = field(default_factory=lambda: _env("CDC_MAILBOX_TOKEN", ""))
     poll_interval_min: int = int(_env("POLL_INTERVAL_MIN", "5"))
+    # Svix signing secret from Resend → Webhooks (whsec_…). Empty means the bounce
+    # endpoint refuses to run rather than accepting unsigned account deletions.
+    resend_webhook_secret: str = _env("RESEND_WEBHOOK_SECRET", "")
 
     # Paths
     log_dir: str = field(default_factory=lambda: _env("LOG_DIR", str(_BASE / "logs")))

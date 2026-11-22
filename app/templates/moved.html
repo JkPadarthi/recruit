@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block bodyclass %}landing-page{% endblock %}
+{% block title %} · We moved{% endblock %}
+{% block content %}
+<main class="landing">
+  <nav class="landing-nav">
+    <a class="brand" href="{{ new_url }}">
+      <svg class="brand-mark" aria-hidden="true"><use href="#i-logo"/></svg>
+      <span class="brand-name">{{ brand }}</span>
+    </a>
+    <div class="nav-actions">
+      <a class="btn btn-primary btn-sm" href="{{ new_url }}">Take me there</a>
+    </div>
+  </nav>
+
+  <section class="landing-hero">
+    <p class="eyebrow">This address is retired</p>
+    <h1 class="landing-title">{{ brand }} moved to a <span class="accent">new address.</span></h1>
+    <p class="lead">
+      The site now lives at <strong>{{ new_domain }}</strong>. This old address stopped
+      serving Recruit on 21&nbsp;November — the page you are reading is only here to point
+      you the right way.
+    </p>
+    <div class="hero-actions">
+      <a class="btn btn-primary" href="{{ new_url }}">Open {{ new_domain }}</a>
+      <a class="btn btn-secondary" href="{{ new_url }}/app">Get the Android app</a>
+    </div>
+  </section>
+
+  <div class="callout callout-quiet" style="margin-top:28px">
+    <svg class="callout-ico" aria-hidden="true"><use href="#i-bell"/></svg>
+    <div class="callout-text">
+      <strong>Already installed Recruit?</strong>
+      <span>
+        An app installed from the old address is pinned to it and cannot be moved, so it
+        will keep showing empty screens. Open the new address, sign in again, and install
+        from there — your register IDs and shortlists are all still on the account.
+      </span>
+    </div>
+  </div>
+</main>
+{% include "_getapp.html" %}
+{% endblock %}
