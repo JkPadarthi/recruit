@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block bodyclass %}auth-page{% endblock %}
+{% block title %} · Check your email{% endblock %}
+{% block content %}
+<main class="auth">
+  <div class="auth-inner">
+    <a class="brand" href="/">
+      <svg class="brand-mark" aria-hidden="true"><use href="#i-logo"/></svg>
+      <span class="brand-name">{{ brand }}</span>
+    </a>
+
+    <div>
+      <h1 class="auth-title">Check your email</h1>
+      <p class="auth-sub" id="verify-sub">
+        We sent a six-digit code to <strong id="verify-email">&nbsp;</strong>.
+        Type it below — it expires in 30 minutes.
+      </p>
+
+      <form id="verify-form" class="form" novalidate>
+        <label class="field">
+          <span class="field-label">Six-digit code</span>
+          <input class="input code-input" type="text" id="code" inputmode="numeric"
+                 autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}"
+                 placeholder="000000" autofocus>
+        </label>
+        <button class="btn btn-primary btn-block" type="submit" id="verify-btn">
+          Verify and continue
+        </button>
+        <p class="form-note" id="verify-note" role="status"></p>
+      </form>
+
+      <p class="auth-alt">
+        Nothing arrived?
+        <button class="linklike" type="button" id="resend">Send a new code</button>
+      </p>
+      <p class="auth-alt">
+        Wrong address? <a href="/register">Start over</a>
+      </p>
+    </div>
+  </div>
+</main>
+
+<script>
+(() => {
+  const params = new URLSearchParams(location.search);
+  const email = (params.get('e') || sessionStorage.getItem('verify_email') || '').trim();
+  const note = document.getElementById('verify-note');
+  const sub = document.getElementById('verify-sub');
+  const btn = document.getElementById('verify-btn');
+  const codeEl = document.getElementById('code');
+
+  const say = (text, bad = false) => {
+    note.textContent = text;
+    note.className = 'form-note ' + (bad ? 'is-bad' : 'is-good');
+  };
+
+  if (!email) {
+    sub.textContent = 'We do not know which address to verify. Sign in again and retry.';
+    btn.disabled = true;
+  } else {
+    sessionStorage.setItem('verify_email', email);
+    document.getElementById('verify-email').textContent = email;
+  }
+
+  // Digits only, and never let the box hold more than six.
+  codeEl.addEventListener('input', () => {
+    codeEl.value = codeEl.value.replace(/\D/g, '').slice(0, 6);
+  });
+
+  document.getElementById('verify-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const code = codeEl.value.trim();
+    if (code.length !== 6) return say('Enter all six digits.', true);
+    btn.disabled = true; btn.classList.add('is-busy');
+    try {
+      const r = await fetch('/api/verify/confirm', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({email, code}),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok) {
+        sessionStorage.removeItem('verify_email');
+        // The IDs typed during signup were parked here because an unverified account
+        // is not allowed to record them.
+        let pending = [];
+        try { pending = JSON.parse(sessionStorage.getItem('pending_ids') || '[]'); } catch (_) {}
+        let added = 0;
+        for (const raw of pending) {
+          const a = await fetch('/api/me/ids', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({register_id: raw}),
+          }).catch(() => null);
+          if (a && a.ok) added++;
+        }
+        sessionStorage.removeItem('pending_ids');
+        location.href = added && added === pending.length ? '/dashboard#feed' : '/dashboard#ids';
+        return;
+      }
+      say(d.detail || 'That code did not work. Try again.', true);
+    } catch (_) {
+      say("Couldn't reach the server. Try again.", true);
+    }
+    btn.disabled = false; btn.classList.remove('is-busy');
+  });
+
+  document.getElementById('resend').addEventListener('click', async (e) => {
+    e.currentTarget.disabled = true;
+    try {
+      const r = await fetch('/api/verify/start', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({email}),
+      });
+      const d = await r.json().catch(() => ({}));
+      say(d.message || 'A new code is on its way.');
+    } catch (_) {
+      say("Couldn't reach the server. Try again.", true);
+    }
+    setTimeout(() => { e.currentTarget.disabled = false; }, 60000);
+  });
+})();
+</script>
+{% endblock %}

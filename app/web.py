@@ -4,7 +4,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from .config import settings
@@ -54,8 +54,28 @@ def register_page(request: Request):
         request, "register.html", {"brand": settings.brand_name, "apk": apk_info()})
 
 
+@router.get("/verify", response_class=HTMLResponse)
+def verify_page(request: Request):
+    return templates.TemplateResponse(
+        request, "verify.html", {"brand": settings.brand_name, "apk": apk_info()})
+
+
+def _needs_verification(request: Request) -> bool:
+    """True when the cookie is valid but the address was never proven."""
+    if not _authed(request):
+        return False
+    from app.main import _current_user, db as module_db
+    try:
+        with module_db.session() as s:
+            return not _current_user(request, s).email_verified
+    except Exception:
+        return False
+
+
 @router.get("/dashboard", response_class=HTMLResponse)
 def dashboard(request: Request):
+    if _needs_verification(request):
+        return RedirectResponse("/verify", status_code=303)
     if not _authed(request):
         return templates.TemplateResponse(
         request, "login.html", {"brand": settings.brand_name, "apk": apk_info()})
@@ -77,6 +97,8 @@ def dashboard(request: Request):
 
 @router.get("/profile", response_class=HTMLResponse)
 def profile_page(request: Request):
+    if _needs_verification(request):
+        return RedirectResponse("/verify", status_code=303)
     if not _authed(request):
         return templates.TemplateResponse(
         request, "login.html", {"brand": settings.brand_name, "apk": apk_info()})

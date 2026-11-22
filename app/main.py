@@ -54,6 +54,8 @@ from .apk import router as apk_router  # noqa: E402
 app.include_router(apk_router)
 from .reset import router as reset_router  # noqa: E402
 app.include_router(reset_router)
+from .verify import router as verify_router  # noqa: E402
+app.include_router(verify_router)
 
 
 def _current_user(request: Request, s: Session) -> User:
@@ -117,6 +119,41 @@ class TestPushIn(BaseModel):
     body: str = "Test notification"
 
 
+# ---- the verification gate --------------------------------------------------
+# An unverified account may sign in and read /api/me (it needs to know its own state),
+# but nothing else. The list is a prefix allowlist on purpose: a new data endpoint is
+# protected by default, which is the failure mode you want.
+# NOTE: /api/me is an EXACT match, not a prefix. "/api/me" as a prefix also exempts
+# /api/me/ids and /api/me/profile — i.e. it hands an unverified account the very thing
+# verification exists to protect. A test pins this.
+_VERIFY_EXEMPT_EXACT = {
+    "/api/login", "/api/register", "/api/logout", "/api/me",
+    "/api/status", "/api/app", "/api/health",
+}
+_VERIFY_EXEMPT_PREFIX = ("/api/verify/", "/api/password/", "/api/push/fcm/unregister")
+
+
+@app.middleware("http")
+async def require_verified_email(request: Request, call_next):
+    path = request.url.path
+    exempt = path in _VERIFY_EXEMPT_EXACT or path.startswith(_VERIFY_EXEMPT_PREFIX)
+    if path.startswith("/api/") and not exempt:
+        if request.cookies.get(settings.session_cookie_name):
+            try:
+                with db.session() as s:
+                    u = _current_user(request, s)
+                    if not u.email_verified:
+                        return JSONResponse(
+                            {"detail": "Verify your email address first.",
+                             "code": "email_unverified",
+                             "email": u.email},
+                            status_code=403,
+                        )
+            except HTTPException:
+                pass  # bad/expired cookie: let the route answer 401 as before
+    return await call_next(request)
+
+
 # ---- lifespan / startup ----------------------------------------------------
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
@@ -146,7 +183,15 @@ def register(body: RegisterIn, request: Request):
         s.add(u)
         s.commit()
         s.refresh(u)
-        return {"id": u.id, "email": u.email}
+        # Prove the address before it can receive anyone's shortlists. A mail failure
+        # must not lose the signup: the verify screen can resend.
+        sent = False
+        try:
+            from .verify import issue
+            sent = issue(s, u, force=True)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("verification mail on signup failed: %s", exc)
+        return {"id": u.id, "email": u.email, "verified": False, "code_sent": sent}
 
 
 @app.post("/api/login")
@@ -159,7 +204,8 @@ def login(body: LoginIn, response: Response):
                             make_session_token(u.id, u.session_epoch or 0),
                             httponly=True, samesite="lax",
                             secure=settings.session_secure, max_age=settings.session_max_age_sec)
-        return {"id": u.id, "email": u.email, "admin": u.is_admin}
+        return {"id": u.id, "email": u.email, "admin": u.is_admin,
+                "verified": bool(u.email_verified)}
 
 
 @app.post("/api/logout")
@@ -177,7 +223,7 @@ def me(request: Request):
         u = _current_user(request, s)
         ids = s.execute(select(UserId).where(UserId.user_id == u.id)).scalars().all()
         return {"id": u.id, "email": u.email, "name": u.name, "branch": u.branch,
-                "division": u.division,
+                "division": u.division, "email_verified": bool(u.email_verified),
                 "admin": u.is_admin,
                 "ids": [{"register_id": i.register_id, "normalized_id": i.normalized_id} for i in ids]}
 

@@ -118,16 +118,10 @@ document.getElementById('reg-form').addEventListener('submit', async (e) => {
         body: JSON.stringify({email: v('email'), password: v('password')}),
       });
       if (!l.ok) { location.href = '/login'; return; }
-      // Track the IDs they gave us. Best-effort: anything that fails can be re-added on the IDs tab.
-      let added = 0;
-      for (const [raw] of ids) {
-        const a = await fetch('/api/me/ids', {
-          method: 'POST', headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({register_id: raw}),
-        }).catch(() => null);
-        if (a && a.ok) added++;
-      }
-      location.href = added && added === ids.length ? '/dashboard#feed' : '/dashboard#ids';
+      // An unverified account cannot touch /api/me/ids, so carry the IDs across the
+      // code step and add them right after the address is proven.
+      sessionStorage.setItem('pending_ids', JSON.stringify(ids.map(([raw]) => raw)));
+      location.href = '/verify?e=' + encodeURIComponent(v('email'));
       return;
     }
     const detail = (await r.json().catch(() => ({}))).detail || '';

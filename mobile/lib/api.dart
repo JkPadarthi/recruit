@@ -117,6 +117,20 @@ class ApiClient {
     return jsonDecode(r.body) as Map<String, dynamic>;
   }
 
+  /// Ask for a code (or another one). The server answers the same way whether or not
+  /// the address exists, so the string it returns is safe to show verbatim.
+  Future<String> verifyStart(String email) async {
+    final r = await _post('/api/verify/start', {'email': email});
+    return '${(r as Map?)?['message'] ?? 'If that address needs a code, it is on its way.'}';
+  }
+
+  /// Mark the address proven. The server also signs us in, so no second login follows.
+  Future<Map<String, dynamic>> verifyConfirm(String email, String code) async =>
+      (await _post('/api/verify/confirm', {'email': email, 'code': code}))
+          as Map<String, dynamic>;
+
+  bool get isVerifiedOnServer => false; // kept for readability of call sites
+
   Future<Map<String, dynamic>> me() async =>
       (await _get('/api/me')) as Map<String, dynamic>;
 
@@ -242,6 +256,17 @@ class ApiException implements Exception {
 
   /// FastAPI puts the human-readable reason in {"detail": ...}; the app shows that
   /// verbatim ("Wrong password.", "Another account already uses that address.").
+  /// The server's machine-readable reason, when it sends one ("email_unverified").
+  String get code {
+    try {
+      final j = jsonDecode(body);
+      if (j is Map && j['code'] is String) return j['code'] as String;
+    } catch (_) {}
+    return '';
+  }
+
+  bool get needsVerification => status == 403 && code == 'email_unverified';
+
   String get detail {
     try {
       final j = jsonDecode(body);

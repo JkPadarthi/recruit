@@ -22,6 +22,13 @@ class User(Base):
     is_admin: Mapped[bool] = mapped_column(default=False)
     # Bumped on password reset; every cookie issued before it stops verifying.
     session_epoch: Mapped[int] = mapped_column(default=0)
+    # 1 once the address has been proven. Accounts created before verification existed
+    # are backfilled to 1 by the migration — they were invited by hand.
+    email_verified: Mapped[int] = mapped_column(default=0, server_default="0")
+    verify_code_hash: Mapped[str] = mapped_column(String(64), default="", server_default="")
+    verify_expires_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    verify_attempts: Mapped[int] = mapped_column(default=0, server_default="0")
+    verify_last_sent: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     ids: Mapped[list["UserId"]] = relationship(back_populates="user", cascade="all, delete-orphan")

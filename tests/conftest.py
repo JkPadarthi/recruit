@@ -50,5 +50,15 @@ def register(client):
         assert r.status_code in (200, 201), r.text
         r2 = await client.post("/api/login", json={"email": email, "password": password})
         assert r2.status_code == 200, r2.text
+        # Real signups must verify their address first; fixtures stand for established
+        # accounts (the prod migration backfills everyone who signed up before this
+        # existed), so skip the code step here. tests/test_verify.py exercises the gate.
+        from sqlalchemy import select
+        from app.main import db as module_db
+        from app.models import User
+        with module_db.session() as s:
+            u = s.execute(select(User).where(User.email == email)).scalar_one()
+            u.email_verified = 1
+            s.commit()
         return email, password
     return _reg

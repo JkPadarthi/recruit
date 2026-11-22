@@ -607,3 +607,14 @@ svg { width: 22px; height: 22px; flex: none; }
 }
 .reset-link-card .input { font-size: 13px; }
 .reset-link-card .btn { justify-self: start; }
+
+/* Verification code: a wide, monospaced box so six digits read as six digits. */
+.code-input{
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-size:22px; letter-spacing:.34em; text-align:center; padding:14px 12px;
+}
+.linklike{
+  background:none; border:0; padding:0; font:inherit; color:var(--saffron,#F4B33D);
+  cursor:pointer; text-decoration:underline; text-underline-offset:2px;
+}
+.linklike:disabled{opacity:.55; cursor:default; text-decoration:none;}

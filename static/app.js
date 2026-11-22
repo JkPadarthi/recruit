@@ -21,6 +21,14 @@ function urlBase64ToUint8Array(base64) {
 async function getJSON(url, opts) {
   const r = await fetch(url, opts);
   if (r.status === 401) { location.href = '/login'; throw new Error('session expired'); }
+  if (r.status === 403) {
+    // Unverified address: the server answers every data route with this code.
+    const body = await r.clone().json().catch(() => ({}));
+    if (body.code === 'email_unverified') {
+      location.href = '/verify?e=' + encodeURIComponent(body.email || '');
+      throw new Error('email not verified');
+    }
+  }
   if (!r.ok) {
     let msg = r.statusText;
     try { msg = (await r.json()).detail || r.statusText; } catch (_) {}

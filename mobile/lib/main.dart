@@ -10,6 +10,7 @@ import 'push.dart';
 import 'theme.dart';
 import 'screens/home.dart';
 import 'screens/login.dart';
+import 'screens/verify.dart';
 
 /// The one place the backend lives.
 /// Where the API lives. Overridable at build time:
@@ -40,7 +41,7 @@ class RecruitApp extends StatelessWidget {
   }
 }
 
-enum _Phase { loading, login, onboarding, ready }
+enum _Phase { loading, login, verify, onboarding, ready }
 
 /// Login vs dashboard, decided by asking the server who we are. The session
 /// cookie is persisted, so this is usually a silent, instant check.
@@ -55,6 +56,7 @@ class _RootState extends State<Root> {
   final _api = ApiClient(kBaseUrl);
   _Phase _phase = _Phase.loading;
   Map<String, dynamic>? _me;
+  String _pendingEmail = '';   // the address waiting on a code
 
   Future<void> _boot() async {
     await _api.loadSession();
@@ -65,6 +67,14 @@ class _RootState extends State<Root> {
     try {
       final me = await _api.me();
       if (!mounted) return;
+      if (me['email_verified'] == false) {
+        setState(() {
+          _me = me;
+          _pendingEmail = '${me['email'] ?? ''}';
+          _phase = _Phase.verify;
+        });
+        return;
+      }
       final onboarded = await Perms.isOnboarded();
       if (!mounted) return;
       setState(() {
@@ -95,6 +105,14 @@ class _RootState extends State<Root> {
   }
 
   Future<void> _onLoggedIn(Map<String, dynamic> me) async {
+    if (me['email_verified'] == false) {
+      setState(() {
+        _me = me;
+        _pendingEmail = '${me['email'] ?? ''}';
+        _phase = _Phase.verify;
+      });
+      return;
+    }
     final onboarded = await Perms.isOnboarded();
     if (!mounted) return;
     setState(() {
@@ -122,6 +140,25 @@ class _RootState extends State<Root> {
         return const Scaffold(body: Center(child: CircularProgressIndicator()));
       case _Phase.login:
         return LoginScreen(api: _api, onLoggedIn: _onLoggedIn);
+      case _Phase.verify:
+        return VerifyScreen(
+          api: _api,
+          email: _pendingEmail,
+          onVerified: () async {
+            // The server signs us in on success, but re-read /api/me so the flags
+            // (admin, ids) are the server's, not ours.
+            try { await _api.me(); } catch (_) {}
+            final onboarded = await Perms.isOnboarded();
+            final me = await _api.me();
+            if (!mounted) return;
+            setState(() {
+              _me = me;
+              _phase = onboarded ? _Phase.ready : _Phase.onboarding;
+            });
+            await Push.instance.start(_api);
+          },
+          onSignOut: _signOut,
+        );
       case _Phase.onboarding:
         return OnboardingScreen(
           onDone: () async {
