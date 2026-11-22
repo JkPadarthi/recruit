@@ -56,6 +56,18 @@ class Push {
     // ignore: deprecated_member_use
     FirebaseMessaging.instance.onTokenRefresh.listen((_) => _register(api));
 
+    // Killed app: the tap that launched us arrives here, not in a listener.
+    final initial = await FirebaseMessaging.instance.getInitialMessage();
+    if (initial != null) {
+      Notifier.instance.opened.value = '${initial.data['url'] ?? '/dashboard#hits'}';
+    }
+
+    // Tapped while the app was running in the background.
+    FirebaseMessaging.onMessageOpenedApp.listen((msg) {
+      Notifier.instance.opened.value =
+          '${msg.data['url'] ?? '/dashboard#hits'}';
+    });
+
     FirebaseMessaging.onMessage.listen((msg) async {
       // Foreground: nothing is displayed automatically for data + notification.
       await Notifier.instance.handlePushData(Map<String, dynamic>.from(msg.data));

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:material_ui/material_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -29,11 +30,33 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _tab = 0;
   final _unread = ValueNotifier<int>(0);
+  final _hitsPing = ValueNotifier<int>(0);
 
   bool get _isAdmin => widget.me['admin'] == true;
 
+  @override
+  void initState() {
+    super.initState();
+    Notifier.instance.opened.addListener(_onNotificationTap);
+    // A tap that launched the app happened before this widget existed.
+    if (Notifier.instance.opened.value.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _onNotificationTap());
+    }
+  }
+
+  /// Notifications and alarms both point at /dashboard#hits, exactly like the web.
+  void _onNotificationTap() {
+    final payload = Notifier.instance.opened.value;
+    if (payload.isEmpty) return;
+    Notifier.instance.opened.value = '';      // consume, so a rebuild does not re-fire
+    if (!mounted) return;
+    setState(() => _tab = 0);                 // "Your hits"
+    _hitsPing.value++;                        // and refetch now
+  }
+
   List<Widget> _tabs() => [
         HitsTab(api: widget.api, unread: _unread,
+            refresh: _hitsPing,
             myIds: ((widget.me['ids'] as List<dynamic>?) ?? const []).length),
         FeedTab(api: widget.api),
         ProfileTab(api: widget.api, me: widget.me, onSignOut: widget.onSignOut),
@@ -52,6 +75,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    Notifier.instance.opened.removeListener(_onNotificationTap);
+    _hitsPing.dispose();
     _unread.dispose();
     super.dispose();
   }
@@ -133,10 +158,15 @@ class _Empty extends StatelessWidget {
 
 // ---------------------------------------------------------------------- hits
 class HitsTab extends StatefulWidget {
-  const HitsTab({super.key, required this.api, required this.unread, this.myIds = 0});
+  const HitsTab({super.key, required this.api, required this.unread,
+      this.myIds = 0, this.refresh});
   final ApiClient api;
   final ValueNotifier<int> unread;
   final int myIds;
+
+  /// Bumped when the user taps a notification: reload immediately instead of waiting
+  /// out the poll, because a tap means "show me what just arrived".
+  final ValueListenable<int>? refresh;
 
   @override
   State<HitsTab> createState() => _HitsTabState();
@@ -154,13 +184,17 @@ class _HitsTabState extends State<HitsTab> {
     super.initState();
     _load();
     _poll = Timer.periodic(const Duration(seconds: 20), (_) => _load(silent: true));
+    widget.refresh?.addListener(_onRefreshSignal);
   }
 
   @override
   void dispose() {
+    widget.refresh?.removeListener(_onRefreshSignal);
     _poll?.cancel();
     super.dispose();
   }
+
+  void _onRefreshSignal() => _load(silent: true);
 
   Future<void> _load({bool silent = false}) async {
     if (!silent) setState(() => _loading = true);

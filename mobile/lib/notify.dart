@@ -21,6 +21,11 @@ class Notifier {
 
   final _plugin = FlutterLocalNotificationsPlugin();
 
+  /// Set when the user taps a notification (or when the app was launched from one).
+  /// Home listens and jumps to Your hits — the app's version of the PWA's
+  /// /dashboard#hits deep link, so a tap always lands where the shortlist lives.
+  final ValueNotifier<String> opened = ValueNotifier<String>('');
+
   static const updatesChannel = 'recruit_updates';
   static const deadlinesChannel = 'recruit_deadlines';
 
@@ -37,6 +42,9 @@ class Notifier {
     tz.setLocalLocation(tz.getLocation(_zone));
 
     await _plugin.initialize(
+      onDidReceiveNotificationResponse: (response) {
+        opened.value = response.payload ?? '/dashboard#hits';
+      },
       settings: const InitializationSettings(
         android: AndroidInitializationSettings('@mipmap/ic_launcher'),
         iOS: DarwinInitializationSettings(
@@ -64,6 +72,16 @@ class Notifier {
       ));
     }
     _ready = true;
+
+    // Cold start: the app was opened BY a notification, so nothing will call the tap
+    // callback. Read the launch details once instead of dropping the deep link.
+    try {
+      final launch = await _plugin.getNotificationAppLaunchDetails();
+      if ((launch?.didNotificationLaunchApp ?? false) &&
+          launch?.notificationResponse?.payload != null) {
+        opened.value = launch!.notificationResponse!.payload!;
+      }
+    } catch (_) {}
   }
 
   /// Asks for everything the alarms need. Returns a human-readable summary so the
