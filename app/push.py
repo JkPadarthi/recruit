@@ -150,6 +150,12 @@ def notify_targeted(db: Session, ingest, matched_user_ids: set[int], has_ids: bo
     """
     if not ingest:
         return
+    if not settings.push_enabled:
+        # Global silence: no web push, no FCM, no locally-armed nudge. Hits still get
+        # stored, so nothing is lost — the switch only stops the buzz.
+        log.info("notifications disabled globally (PUSH_ENABLED=0); ingest id=%s not sent",
+                 ingest.id)
+        return
     from .extract import audience_matches, parse_audience
     from .models import User
     links = []

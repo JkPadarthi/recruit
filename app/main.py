@@ -656,6 +656,9 @@ def admin_test_push(body: TestPushIn, request: Request):
     """
     with db.session() as s:
         _current_admin(request, s)
+        if not settings.push_enabled:
+            # The admin tool must not be a back door around the master switch.
+            raise HTTPException(409, "notifications are disabled globally (PUSH_ENABLED=0)")
         subs = s.execute(select(PushSubscription).where(
             PushSubscription.user_id == body.user_id,
             PushSubscription.platform == "web")).scalars().all()
