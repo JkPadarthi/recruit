@@ -81,12 +81,11 @@ def main(db_path: str) -> int:
                   [(hash_id(n), i) for i, n in hits])
     print(f"hits: hashed {len(hits)}")
 
-    # ---- 3. wipe the plaintext -------------------------------------------
-    c.execute("update entries set normalized_id = '', original = '' "
-              "where normalized_id != '' or original != ''")
-    c.execute("update user_ids set normalized_id = '', register_id = '' "
-              "where normalized_id != '' or register_id != ''")
-    print("plaintext blanked in entries + user_ids")
+    # ---- 3. (the plaintext is wiped by the rebuild below) -----------------
+    # Blanks cannot be set with an UPDATE: the OLD unique constraint is still
+    # (ingested_id, normalized_id), so every row of a mail would collide on ''. The
+    # table rebuild drops that constraint and inserts '' in one statement instead.
+    c.commit()
 
     # ---- 4. rebuild both tables so uniqueness follows code_hash -----------
     c.executescript("""
