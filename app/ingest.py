@@ -175,9 +175,16 @@ def process_message(raw: bytes, msg_uid: str, db: Session, folder: str = "INBOX"
     db.add(ingest)
     db.flush()
 
+    from .ids import hashing_enabled, hash_id
     for ident in sorted(extracted):
-        db.add(Entry(ingested_id=ingest.id, normalized_id=ident, original=ident,
-                     slot=sheet_slots.get(ident, "")))
+        # A shortlist is every selected student's NEO ID in one file. Store the keyed
+        # hash only; the plaintext is never written unless no key is configured.
+        if hashing_enabled():
+            db.add(Entry(ingested_id=ingest.id, code_hash=hash_id(ident),
+                         normalized_id="", original="", slot=sheet_slots.get(ident, "")))
+        else:
+            db.add(Entry(ingested_id=ingest.id, normalized_id=ident, original=ident,
+                         slot=sheet_slots.get(ident, "")))
     db.commit()
     log.info("uid %s ingested kind=%s ids=%d", msg_uid, kind, len(extracted))
 

@@ -55,7 +55,9 @@ async def test_add_and_list_ids(client, register):
     assert r.status_code == 200
     assert r.json()["added"] is True
     me = (await client.get("/api/me")).json()
-    assert any(i["normalized_id"] == "23BAI0021" for i in me["ids"])
+    # IDs are stored as keyed hashes: the list carries a position, never the code.
+    assert me["ids"] == [{"id": me["ids"][0]["id"], "label": "ID 1"}]
+    assert "23BAI0021" not in str(me)
 
 
 async def test_add_invalid_id_rejected(client, register):
@@ -89,7 +91,8 @@ async def test_push_toggle_subscribe_unsubscribe(client, register):
 async def test_delete_id(client, register):
     await register()
     await client.post("/api/me/ids", json={"register_id": "23BAI0021"})
-    r = await client.delete("/api/me/ids/23BAI0021")
+    me = (await client.get("/api/me")).json()
+    r = await client.delete(f"/api/me/ids/{me['ids'][0]['id']}")
     assert r.status_code == 200
     me = (await client.get("/api/me")).json()
     assert me["ids"] == []
@@ -102,7 +105,8 @@ async def test_end_to_end_hit(client, register):
     assert kind == "shortlist"
     hits = (await client.get("/api/hits")).json()
     assert hits["unread"] == 1
-    assert hits["hits"][0]["normalized_id"] == "23BAI0021"
+    from app.ids import hash_id
+    assert hits["hits"][0]["normalized_id"] == hash_id("23BAI0021")
 
 
 async def test_mark_read(client, register):

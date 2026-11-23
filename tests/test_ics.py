@@ -46,8 +46,11 @@ def _seed_hit(slot: str) -> int:
                        kind="shortlist")
         s.add(ing)
         s.commit()
-        s.add(Entry(ingested_id=ing.id, normalized_id="K3I6O4I8", slot=slot))
-        h = Hit(user_id=u.id, ingested_id=ing.id, normalized_id="K3I6O4I8")
+        # Rows as ingest writes them now: keyed hash only, plaintext blank.
+        from app.ids import hash_id
+        code = hash_id("K3I6O4I8")
+        s.add(Entry(ingested_id=ing.id, code_hash=code, normalized_id="", slot=slot))
+        h = Hit(user_id=u.id, ingested_id=ing.id, normalized_id=code)
         s.add(h)
         s.commit()
         return h.id

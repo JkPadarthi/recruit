@@ -62,6 +62,10 @@ class Settings:
     smtp_password: str = field(default_factory=lambda: _env("SMTP_PASSWORD", ""))
     smtp_from: str = field(default_factory=lambda: _env("SMTP_FROM", ""))   # "Recruit <no-reply@…>"
 
+    # Key for hashing tracked IDs (base64, 32 bytes). Empty = legacy plaintext mode,
+    # loudly logged. Losing this key makes every tracked ID un-matchable: back it up.
+    id_hash_key: str = field(default_factory=lambda: _env("ID_HASH_KEY", ""))
+
     # Master switch for EVERY outbound notification (web push + FCM + admin test
     # sends). Ingest keeps running and hits keep landing; only the buzz stops.
     # Default on: the flag exists so push can be silenced in one place, not so every

@@ -260,10 +260,12 @@ def me(request: Request):
     with db.session() as s:
         u = _current_user(request, s)
         ids = s.execute(select(UserId).where(UserId.user_id == u.id)).scalars().all()
+        # Tracked IDs are stored as keyed hashes, so they cannot be shown back. The UI
+        # gets a position and a stable row id (for deleting), nothing else.
         return {"id": u.id, "email": u.email, "name": u.name, "branch": u.branch,
                 "division": u.division, "email_verified": bool(u.email_verified),
                 "admin": u.is_admin,
-                "ids": [{"register_id": i.register_id, "normalized_id": i.normalized_id} for i in ids]}
+                "ids": [{"id": i.id, "label": f"ID {n}"} for n, i in enumerate(ids, 1)]}
 
 
 @app.put("/api/me/profile")
@@ -333,18 +335,23 @@ def add_id(body: IdIn, request: Request):
         from .util import looks_like_id
         if not looks_like_id(norm):
             raise HTTPException(422, f"'{body.register_id}' does not look like a register ID")
-        dup = s.execute(select(UserId).where(UserId.user_id == u.id,
-                                             UserId.normalized_id == norm)).scalar_one_or_none()
-        if dup:
-            return {"added": False, "normalized_id": norm, "backfilled": 0}
-        s.add(UserId(user_id=u.id, register_id=body.register_id.strip(), normalized_id=norm))
+        from .ids import hashing_enabled, hash_id
+        hashed = hash_id(norm) if hashing_enabled() else ""
+        dup_q = (select(UserId).where(UserId.user_id == u.id, UserId.code_hash == hashed)
+                 if hashing_enabled() else
+                 select(UserId).where(UserId.user_id == u.id, UserId.normalized_id == norm))
+        if s.execute(dup_q).scalar_one_or_none():
+            return {"added": False, "backfilled": 0}
+        # The plaintext columns stay empty: the hash is the only record of the code.
+        s.add(UserId(user_id=u.id, register_id="", normalized_id="", code_hash=hashed))
         s.commit()
         # BACKFILL: the matcher otherwise runs only at ingest time, so every mail
         # that arrived before this ID was added is permanently invisible to this
         # user (measured: 75 real shortlist mails silently missed across 5 users,
         # one user 37 of 37). Re-match the mails that actually contain this code.
         backfilled = _backfill_hits_for(s, u.id, norm)
-        return {"added": True, "normalized_id": norm, "backfilled": backfilled}
+        # No echo of the code: the response is the last place it could leak.
+        return {"added": True, "backfilled": backfilled}
 
 
 def _backfill_hits_for(s: Session, user_id: int, norm: str) -> int:
@@ -358,17 +365,22 @@ def _backfill_hits_for(s: Session, user_id: int, norm: str) -> int:
     from .matcher import match_shortlist
     from .models import Entry
 
+    from .ids import hashing_enabled, hash_id
+    lookup = Entry.code_hash if hashing_enabled() else Entry.normalized_id
+    value = hash_id(norm) if hashing_enabled() else norm
     ing_ids = [r[0] for r in s.execute(
-        select(Entry.ingested_id).where(Entry.normalized_id == norm).distinct())]
+        select(Entry.ingested_id).where(lookup == value).distinct())]
     if not ing_ids:
         return 0
+    from .ids import stored
+    key = stored(norm)
     before = s.execute(select(func.count(Hit.id)).where(
-        Hit.user_id == user_id, Hit.normalized_id == norm)).scalar_one()
+        Hit.user_id == user_id, Hit.normalized_id == key)).scalar_one()
     for iid in ing_ids:
         match_shortlist(s, iid, {norm})
     s.commit()
     after = s.execute(select(func.count(Hit.id)).where(
-        Hit.user_id == user_id, Hit.normalized_id == norm)).scalar_one()
+        Hit.user_id == user_id, Hit.normalized_id == key)).scalar_one()
     created = after - before
     if created:
         # Age is judged by the MAIL's timestamp, not the hit's (a backfilled hit is
@@ -376,7 +388,7 @@ def _backfill_hits_for(s: Session, user_id: int, norm: str) -> int:
         from datetime import datetime, timedelta, timezone
         cut = datetime.now(timezone.utc) - timedelta(days=14)
         fresh = s.execute(select(Hit).where(
-            Hit.user_id == user_id, Hit.normalized_id == norm,
+            Hit.user_id == user_id, Hit.normalized_id == key,
             Hit.read_at.is_(None))).scalars().all()
         for h in fresh:
             ing = s.get(Ingested, h.ingested_id)
@@ -389,12 +401,14 @@ def _backfill_hits_for(s: Session, user_id: int, norm: str) -> int:
     return created
 
 
-@app.delete("/api/me/ids/{normalized_id}")
-def delete_id(normalized_id: str, request: Request):
+@app.delete("/api/me/ids/{row_id}")
+def delete_id(row_id: int, request: Request):
+    """Remove one tracked ID. Keyed by row id: the code itself no longer exists in the
+    database, so it cannot be used as the identifier."""
     with db.session() as s:
         u = _current_user(request, s)
         row = s.execute(select(UserId).where(UserId.user_id == u.id,
-                                             UserId.normalized_id == normalize_id(normalized_id))).scalar_one_or_none()
+                                             UserId.id == row_id)).scalar_one_or_none()
         if not row:
             raise HTTPException(404, "id not found")
         s.delete(row)
@@ -417,14 +431,20 @@ def get_hits(request: Request, unread_only: bool = False):
         # one query for every row context we might show (no N+1 per hit)
         slotmap: dict[tuple[int, str], str] = {}
         if hits:
+            # hits.normalized_id is the keyed hash of the code, and so is Entry.code_hash:
+            # the sheet row is looked up by hash, never by the code itself.
+            from .ids import hashing_enabled
+            col = Entry.code_hash if hashing_enabled() else Entry.normalized_id
+            keys = [h.normalized_id for h in hits]
             ents = s.execute(
                 select(Entry).where(
                     Entry.ingested_id.in_([h.ingested_id for h in hits]),
-                    Entry.normalized_id.in_([h.normalized_id for h in hits]),
+                    col.in_(keys),
                     Entry.slot != "",
                 )
             ).scalars().all()
-            slotmap = {(e.ingested_id, e.normalized_id): e.slot for e in ents}
+            slotmap = {(e.ingested_id, e.code_hash if hashing_enabled() else e.normalized_id): e.slot
+                       for e in ents}
         out = []
         for h in hits:
             ing = s.get(Ingested, h.ingested_id)
@@ -474,9 +494,10 @@ def hit_calendar(hit_id: int, request: Request):
         if hit is None or hit.user_id != u.id:
             raise HTTPException(404, "no such hit")
 
+        from .ids import hashing_enabled
         ent = s.execute(select(Entry).where(
             Entry.ingested_id == hit.ingested_id,
-            Entry.normalized_id == hit.normalized_id,
+            (Entry.code_hash if hashing_enabled() else Entry.normalized_id) == hit.normalized_id,
             Entry.slot != "",
         )).scalars().first()
         if ent is None:
@@ -555,18 +576,25 @@ def get_mails(request: Request, limit: int = 50):
         # Per-user slots: ONLY the rows carrying this user's own codes. Sending all
         # 831 rows of a shortlist sheet would triple the feed payload for nothing.
         from .extract import pretty_time
-        my_ids = {row.normalized_id for row in u.ids}
+        # The tracked codes are hashes, so the feed is keyed by the slot the user knows
+        # ("ID 1") instead. Keys used to be the code itself, which leaked it to anyone
+        # reading the JSON.
+        from .ids import hashing_enabled
+        labels = {row.code_hash: f"ID {n}" for n, row in enumerate(u.ids, 1)} \
+            if hashing_enabled() else {row.normalized_id: f"ID {n}" for n, row in enumerate(u.ids, 1)}
         slots: dict[int, dict[str, str]] = {}
-        if my_ids and visible:
+        if labels and visible:
+            col = Entry.code_hash if hashing_enabled() else Entry.normalized_id
             ents = s.execute(
                 select(Entry).where(
                     Entry.ingested_id.in_([i.id for i in visible]),
-                    Entry.normalized_id.in_(my_ids),
+                    col.in_(list(labels)),
                     Entry.slot != "",
                 )
             ).scalars().all()
             for e in ents:
-                slots.setdefault(e.ingested_id, {})[e.normalized_id] = pretty_time(e.slot)
+                key = e.code_hash if hashing_enabled() else e.normalized_id
+                slots.setdefault(e.ingested_id, {})[labels.get(key, "ID")] = pretty_time(e.slot)
         return {"mails": [
             {"id": i.id, "subject": i.subject, "from": i.from_addr, "date": i.date,
              "kind": i.kind, "eligible_branches": i.eligible_branches,

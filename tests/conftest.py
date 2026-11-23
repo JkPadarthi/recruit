@@ -16,6 +16,9 @@ os.environ["SECRET_KEY"] = "test-secret"
 os.environ["SESSION_SECURE"] = "0"
 os.environ["INVITE_CODE"] = ""
 os.environ["ADMIN_EMAIL"] = "admin@vit.ac.in"
+# Fixed test key so the suite runs in the same mode production does: tracked IDs and
+# CDC shortlist entries are stored as keyed hashes, never as text.
+os.environ["ID_HASH_KEY"] = "dGVzdC1rZXktZm9yLXVuaXQtdGVzdHMtb25seS0zMmI="
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 

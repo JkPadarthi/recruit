@@ -126,14 +126,28 @@ def _slots_for_users(db: Session, ingested_id: int, user_ids: set[int]) -> dict[
     """{user_id: raw spreadsheet row context} for each matched user's own code."""
     if not user_ids:
         return {}
-    slots = {e.normalized_id: e.slot
-             for e in db.execute(select(Entry).where(
-                 Entry.ingested_id == ingested_id, Entry.slot != "")).scalars()}
+    from .ids import hashing_enabled, hash_id
+    rows = db.execute(select(Entry).where(
+        Entry.ingested_id == ingested_id, Entry.slot != "")).scalars().all()
+    if not rows:
+        return {}
+    # entries keep the raw sheet text (that is every student's data, not ours), so when
+    # our own IDs are hashed the comparison has to happen here: hash each row of this
+    # mail once (at most a few hundred) and look the user's hash up in that map.
+    if hashing_enabled():
+        # A row written before the migration has a hash-less plaintext code; hash it here
+        # so a half-migrated database still resolves slots instead of silently dropping.
+        slots = {(e.code_hash or hash_id(e.normalized_id)): e.slot
+                 for e in rows if e.code_hash or e.normalized_id}
+        key_col = UserId.code_hash
+    else:
+        slots = {e.normalized_id: e.slot for e in rows}
+        key_col = UserId.normalized_id
     if not slots:
         return {}
     out: dict[int, str] = {}
     for uid, code in db.execute(
-            select(UserId.user_id, UserId.normalized_id).where(UserId.user_id.in_(user_ids))):
+            select(UserId.user_id, key_col).where(UserId.user_id.in_(user_ids))):
         ctx = slots.get(code)
         if ctx:
             out.setdefault(uid, ctx)

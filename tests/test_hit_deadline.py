@@ -22,9 +22,12 @@ def _seed(email: str, slot: str, subject: str = "HCL Tech Online Test 23-11-2026
                        kind="shortlist", outcome="shortlist")
         s.add(ing)
         s.flush()
-        s.add(Entry(ingested_id=ing.id, normalized_id="K3I6O4I8", original="K3I6O4I8",
+        # Write the rows the way ingest does now: keyed hashes, no plaintext.
+        from app.ids import hash_id
+        code = hash_id("K3I6O4I8")
+        s.add(Entry(ingested_id=ing.id, code_hash=code, normalized_id="", original="",
                     slot=slot))
-        s.add(Hit(user_id=u.id, ingested_id=ing.id, normalized_id="K3I6O4I8"))
+        s.add(Hit(user_id=u.id, ingested_id=ing.id, normalized_id=code))
         s.commit()
         return ing.id
 

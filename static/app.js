@@ -149,21 +149,18 @@ async function loadMe() {
 }
 
 // Shortlists identify people by register number OR NEO ID, so nudge until both are tracked.
+// Tracked IDs are stored as keyed hashes, so the page cannot tell a register number from
+// a NEO ID — both kinds are just a slot. Two slots is the goal, and that is all we can say.
 function updateSetupNudge(ids) {
   const nudge = $('setup-nudge');
   if (!nudge) return;
-  const kinds = new Set(ids.map((i) => idKind(i.normalized_id)));
-  const hasReg = kinds.has('register'), hasNeo = kinds.has('neo');
-  nudge.hidden = hasReg && hasNeo;
+  nudge.hidden = ids.length >= 2;
   if (!ids.length) {
     setText('setup-nudge-title', 'Add your register number and NEO ID');
     setText('setup-nudge-text', "Without them we can't tell when a shortlist is about you.");
-  } else if (!hasNeo) {
-    setText('setup-nudge-title', 'Add your NEO ID too');
-    setText('setup-nudge-text', "Some shortlists only print NEO IDs — you'd miss those.");
-  } else if (!hasReg) {
-    setText('setup-nudge-title', 'Add your register number too');
-    setText('setup-nudge-text', "Some shortlists only print register numbers — you'd miss those.");
+  } else {
+    setText('setup-nudge-title', 'Add your second ID too');
+    setText('setup-nudge-text', "Some shortlists print only register numbers, others only NEO IDs.");
   }
 }
 
@@ -176,15 +173,17 @@ function renderIds() {
       <p>Add your register number and NEO ID above — it's how we know a shortlist is about you.</p></li>`;
     return;
   }
+  // The code itself is gone from the server (keyed hash only), so a row is just its
+  // position. Nothing here can reveal — or resurrect — the number that was entered.
   ul.innerHTML = ids.map((id) => `
     <li>
       <span class="id-badge">${icon('id')}</span>
       <span class="id-main">
-        <span class="id-val">${escapeHtml(id.normalized_id)}</span>
-        <span class="id-kind">${ID_KIND_LABEL[idKind(id.normalized_id)] || 'ID'}</span>
+        <span class="id-val">${escapeHtml(id.label || 'ID')}</span>
+        <span class="id-kind">tracked</span>
       </span>
-      <button class="icon-btn is-danger" type="button" data-del-id="${escapeHtml(id.normalized_id)}"
-              data-raw="${escapeHtml(id.register_id)}" aria-label="Remove ${escapeHtml(id.normalized_id)}">${icon('x')}</button>
+      <button class="icon-btn is-danger" type="button" data-del-id="${Number(id.id)}"
+              aria-label="Remove ${escapeHtml(id.label || 'this ID')}">${icon('x')}</button>
     </li>`).join('');
 }
 
@@ -226,15 +225,14 @@ function initIds() {
   $('id-list').addEventListener('click', async (e) => {
     const b = e.target.closest('[data-del-id]');
     if (!b) return;
-    const norm = b.dataset.delId, raw = b.dataset.raw || norm;
+    const rowId = b.dataset.delId;
     b.disabled = true;
     try {
-      await getJSON('/api/me/ids/' + encodeURIComponent(norm), { method: 'DELETE' });
+      await getJSON('/api/me/ids/' + encodeURIComponent(rowId), { method: 'DELETE' });
       await loadMe();
-      toast(`Stopped tracking ${norm}.`, {
-        action: 'Undo', ms: 6000,
-        onAction: () => addId(raw).catch((ex) => toast('Undo failed: ' + ex.message, { error: true })),
-      });
+      // No Undo: the server never stored the code, so it cannot be put back. Re-adding
+      // means typing the number again.
+      toast('ID removed. Type it again to track it.', { ms: 6000 });
     } catch (ex) {
       b.disabled = false;
       toast("Couldn't remove that ID: " + ex.message, { error: true });

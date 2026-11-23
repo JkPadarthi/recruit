@@ -10,6 +10,7 @@ from collections.abc import Iterable
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from .ids import hashing_enabled, hash_id
 from .models import Hit, UserId
 
 log = logging.getLogger("recruit.match")
@@ -21,21 +22,29 @@ def match_shortlist(db: Session, ingested_id: int, normalized_ids: Iterable[str]
     ids = list(dict.fromkeys(normalized_ids))
     if not ids:
         return []
-    user_ids = db.execute(
-        select(UserId).where(UserId.normalized_id.in_(ids))
-    ).scalars().all()
+    # Tracked IDs live as keyed hashes; the codes from the mail are hashed the same way,
+    # so matching never needs the plaintext to be stored. On a deployment with no
+    # ID_HASH_KEY configured, hash_id() is the identity and the legacy column is used.
+    if hashing_enabled():
+        user_ids = db.execute(
+            select(UserId).where(UserId.code_hash.in_([hash_id(i) for i in ids]))
+        ).scalars().all()
+    else:
+        user_ids = db.execute(
+            select(UserId).where(UserId.normalized_id.in_(ids))
+        ).scalars().all()
 
     created: list[Hit] = []
     for uid in user_ids:
+        code = uid.code_hash if hashing_enabled() else uid.normalized_id
         dup = db.execute(select(Hit).where(
             Hit.user_id == uid.user_id,
             Hit.ingested_id == ingested_id,
-            Hit.normalized_id == uid.normalized_id,
+            Hit.normalized_id == code,
         )).scalar_one_or_none()
         if dup:
             continue
-        hit = Hit(user_id=uid.user_id, ingested_id=ingested_id,
-                  normalized_id=uid.normalized_id)
+        hit = Hit(user_id=uid.user_id, ingested_id=ingested_id, normalized_id=code)
         db.add(hit)
         created.append(hit)
     if created:

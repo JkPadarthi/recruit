@@ -56,7 +56,8 @@ async def test_adding_an_id_backfills_past_shortlists(client, register):
 
     hits = (await client.get("/api/hits")).json()["hits"]
     assert len(hits) == 1
-    assert hits[0]["normalized_id"] == "K3I6O4I8"
+    from app.ids import hash_id
+    assert hits[0]["normalized_id"] == hash_id("K3I6O4I8")
     assert "PRP 713" in hits[0]["slot"]
 
 

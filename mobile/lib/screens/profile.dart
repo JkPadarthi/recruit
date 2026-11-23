@@ -75,9 +75,9 @@ class _ProfileTabState extends State<ProfileTab> {
       final backfilled = r['backfilled'];
       if (!mounted) return;
       setState(() => _note = r['added'] == true
-          ? 'Added ${r['normalized_id']}'
+          ? 'ID added'
               '${backfilled is int && backfilled > 0 ? " — recovered $backfilled older hit(s)" : ""}'
-          : '${r['normalized_id']} is already on your account');
+          : 'That ID is already on your account');
       _idController.clear();
       await _refreshMe();
     } on ApiException catch (e) {
@@ -194,11 +194,11 @@ class _ProfileTabState extends State<ProfileTab> {
                               const Icon(Icons.badge_outlined, size: 15, color: R.ink3),
                               const SizedBox(width: 8),
                               Expanded(
-                                child: Text('${id['register_id'] ?? id['normalized_id'] ?? ''}',
+                                child: Text('${id['label'] ?? 'ID'}',
                                     style: R.code),
                               ),
                               InkWell(
-                                onTap: () => _removeId('${id['normalized_id'] ?? ''}'),
+                                onTap: () => _removeId(id['id'] as int),
                                 borderRadius: BorderRadius.circular(99),
                                 child: const Padding(
                                   padding: EdgeInsets.all(4),
@@ -369,13 +369,12 @@ class _ProfileTabState extends State<ProfileTab> {
         ),
       );
 
-  Future<void> _removeId(String normalized) async {
-    if (normalized.isEmpty) return;
+  Future<void> _removeId(int rowId) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: R.surface,
-        title: Text('Remove $normalized?', style: R.subject),
+        title: const Text('Remove this ID?', style: R.subject),
         content: Text('You will stop being notified about mails that list this code.',
             style: R.body),
         actions: [
@@ -389,9 +388,9 @@ class _ProfileTabState extends State<ProfileTab> {
     );
     if (ok != true) return;
     try {
-      await widget.api.deleteId(normalized);
+      await widget.api.deleteId(rowId);
       await _refreshMe();
-      if (mounted) setState(() => _note = 'Removed $normalized');
+      if (mounted) setState(() => _note = 'ID removed');
     } catch (e) {
       if (mounted) setState(() => _note = 'Could not remove: $e');
     }

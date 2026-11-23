@@ -215,8 +215,8 @@ class ApiClient {
       (await _put('/api/me/email', {'email': email, 'password': password}))
           as Map<String, dynamic>;
 
-  Future<Map<String, dynamic>> deleteId(String normalizedId) async =>
-      (await _delete('/api/me/ids/$normalizedId')) as Map<String, dynamic>;
+  Future<Map<String, dynamic>> deleteId(int rowId) async =>
+      (await _delete('/api/me/ids/$rowId')) as Map<String, dynamic>;
 
   // ------------------------------------------------------------- admin
   Future<Map<String, dynamic>> adminStats() async =>

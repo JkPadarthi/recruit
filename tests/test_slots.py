@@ -6,6 +6,7 @@ Before this, extract_ids_from_xlsx() flattened every cell to a set of codes and
 the row was lost, so the feed and the push could only ever show the subject.
 """
 import io
+from app.ids import hash_id  # noqa: E402
 
 CDC_FROM = "vitianscdc2027@vitstudent.ac.in"
 HDR = ["S No.", "ApplicationNo.", "Neo ID", "Skill Stack", "Reporting venue", "Date & Time"]
@@ -119,10 +120,10 @@ async def test_ingest_persists_the_slot_on_the_entry(client):
     with module_db.session() as s:
         assert process_message(_mail_with_xlsx(ROWS), "9001", s) == "shortlist"
     with module_db.session() as s:
-        e = s.execute(select(Entry).where(Entry.normalized_id == "K3I6O4I8")).scalars().one()
+        e = s.execute(select(Entry).where(Entry.code_hash == hash_id("K3I6O4I8"))).scalars().one()
         assert "PRP 713" in e.slot and "23-11-2026 (2.30 pm)" in e.slot
         # body-only codes have no row context and must stay ""
-        e2 = s.execute(select(Entry).where(Entry.normalized_id == "A2Z7K4F5")).scalars().one()
+        e2 = s.execute(select(Entry).where(Entry.code_hash == hash_id("A2Z7K4F5"))).scalars().one()
         assert "PRP 717" in e2.slot
 
 
@@ -135,7 +136,7 @@ async def test_hit_api_returns_the_students_own_slot(client, register):
     with module_db.session() as s:
         process_message(_mail_with_xlsx(ROWS), "9002", s)
     hits = (await client.get("/api/hits")).json()["hits"]
-    assert hits[0]["normalized_id"] == "K3I6O4I8"
+    assert hits[0]["normalized_id"] == hash_id("K3I6O4I8")
     assert "PRP 713" in hits[0]["slot"] and "2:30 pm" in hits[0]["slot"]
 
 
@@ -148,8 +149,10 @@ async def test_feed_only_carries_your_own_rows(client, register):
         process_message(_mail_with_xlsx(ROWS), "9003", s)
     mails = (await client.get("/api/mails")).json()["mails"]
     mine = mails[0]["my_slots"]
-    assert list(mine) == ["K3I6O4I8"]              # 831 rows never ship, only yours
-    assert "PRP 713" in mine["K3I6O4I8"]
+    # Keyed by slot, not by code: the feed used to hand back the user's own ID as a JSON
+    # key, which is exactly the thing hashing is supposed to prevent.
+    assert list(mine) == ["ID 1"]                  # 831 rows never ship, only yours
+    assert "PRP 713" in mine["ID 1"]
 
 
 # ---- push layer ------------------------------------------------------------
@@ -334,7 +337,7 @@ async def test_hits_api_exposes_company_and_prefers_the_sheet_row(client, regist
             "9400", s)
 
     h = (await client.get("/api/hits")).json()["hits"][0]
-    assert h["normalized_id"] == "K3I6O4I8"
+    assert h["normalized_id"] == hash_id("K3I6O4I8")
     assert h["company"] == "HCL Tech"                       # chip next to the ID
     assert h["slot"].startswith("ApplicationNo.: HCLTFP2461546")   # card body
     # house date style: the sheet writes 2.30 pm, every surface shows 2:30 pm
@@ -351,7 +354,7 @@ async def test_feed_slot_uses_house_date_style_too(client, register):
     with module_db.session() as s:
         process_message(_mail_with_xlsx(ROWS), "9500", s)
     mails = (await client.get("/api/mails")).json()["mails"]
-    slot = [m for m in mails if m.get("my_slots")][0]["my_slots"]["K3I6O4I8"]
+    slot = [m for m in mails if m.get("my_slots")][0]["my_slots"]["ID 1"]
     assert "23-11-2026 (2:30 pm)" in slot
     assert "2.30 pm" not in slot
 

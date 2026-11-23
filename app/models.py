@@ -40,12 +40,19 @@ class User(Base):
 
 class UserId(Base):
     __tablename__ = "user_ids"
-    __table_args__ = (UniqueConstraint("user_id", "normalized_id", name="uq_user_normalized"),)
+    # Uniqueness follows the hash, not the (now blank) plaintext: two rows for one user
+    # would otherwise both be '' and collide.
+    __table_args__ = (UniqueConstraint("user_id", "code_hash", name="uq_user_code_hash"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
-    register_id: Mapped[str] = mapped_column(String(64))          # raw as entered
-    normalized_id: Mapped[str] = mapped_column(String(64), index=True)  # squashed+uppercased
+    # Both plaintext columns are blanked by scripts/migrate_hash_ids.py and stay blank:
+    # the keyed hash is the only record of the code from then on. They are kept so a
+    # half-migrated deployment (no ID_HASH_KEY) still works instead of crashing.
+    register_id: Mapped[str] = mapped_column(String(64), default="")     # legacy, blanked
+    normalized_id: Mapped[str] = mapped_column(String(64), index=True, default="")  # legacy
+    # HMAC-SHA256(normalized_id, ID_HASH_KEY) — what matching actually compares.
+    code_hash: Mapped[str] = mapped_column(String(64), index=True, default="")
     created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     user: Mapped[User] = relationship(back_populates="ids")
@@ -76,12 +83,15 @@ class Ingested(Base):
 
 class Entry(Base):
     __tablename__ = "entries"
-    __table_args__ = (UniqueConstraint("ingested_id", "normalized_id", name="uq_entry_normalized"),)
+    __table_args__ = (UniqueConstraint("ingested_id", "code_hash", name="uq_entry_code_hash"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     ingested_id: Mapped[int] = mapped_column(ForeignKey("ingested.id"), index=True)
-    normalized_id: Mapped[str] = mapped_column(String(64), index=True)
+    # Blanked by scripts/migrate_hash_ids.py: a CDC shortlist names every selected
+    # student, so this table is the single biggest pile of NEO IDs in the system.
+    normalized_id: Mapped[str] = mapped_column(String(64), index=True, default="")
     original: Mapped[str] = mapped_column(String(120), default="")
+    code_hash: Mapped[str] = mapped_column(String(64), index=True, default="")
     # The spreadsheet row this code sat on: date/venue/time/stack, label-qualified.
     # "" when the mail had no row context (body-only lists, no attachment).
     slot: Mapped[str] = mapped_column(Text, default="")
