@@ -211,8 +211,9 @@ function initIds() {
     try {
       const r = await addId(val);
       input.value = '';
-      toast(r.added ? `Tracking ${r.normalized_id} — you'll be pinged when it's on a list.`
-                    : `You're already tracking ${r.normalized_id}.`);
+      // The server keeps only a keyed hash, so the response has no code to echo back.
+      toast(r.added ? "ID added — you'll be pinged when it's on a list."
+                    : "That ID is already on your account.");
     } catch (ex) {
       err.textContent = /does not look like/.test(ex.message)
         ? `"${val}" doesn't look like a register number (23BAI0021) or a NEO ID (K3I6O4I8). Check for typos.`
@@ -441,7 +442,6 @@ function renderHits() {
       <span class="hit-dot" aria-hidden="true"></span>
       <div class="hit-main">
         <div class="hit-head">
-          <span class="hit-id">${escapeHtml(h.normalized_id)}</span>
           ${h.company ? `<span class="hit-company">${escapeHtml(h.company)}</span>` : ''}
         </div>
         <p class="${h.slot ? 'hit-row' : 'hit-summ'}">${escapeHtml(hitLine(h))}</p>
